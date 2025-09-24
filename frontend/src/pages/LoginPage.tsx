@@ -14,6 +14,9 @@ import {
   Typography,
 } from "@mui/material";
 import { useState } from "react";
+import { authenticated } from "../services/auth.service";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 export const LoginPage: React.FC = () => {
   
@@ -23,9 +26,9 @@ export const LoginPage: React.FC = () => {
   
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
-
+  const navigate= useNavigate();
   
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit =async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     
@@ -55,11 +58,33 @@ export const LoginPage: React.FC = () => {
     if (!isValid) return;
 
     
-    console.log("Email:", email);
-    console.log("Password:", password);
+    try {
+    const res = await authenticated({
+      email,
+      password,
+    });
+
+    if (res) {
+      
+      localStorage.setItem("token", res.access_token);
+      navigate('/dashboard');
+    } else {
+      
+      setPasswordError("Invalid email or password");
+    }
+  } catch (err) {
+    console.error(err);
+    setPasswordError("Login failed. Please try again.");
+  }
   };
 
   return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+    >
     <Container
       maxWidth={false}
       sx={{
@@ -124,13 +149,15 @@ export const LoginPage: React.FC = () => {
             placeholder="Enter your email"
             margin="normal"
             autoComplete="off"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <EmailOutlinedIcon sx={{ color: "grey.500" }} />
-                </InputAdornment>
-              ),
-            }}
+            slotProps={{
+    input: {
+      startAdornment: (
+        <InputAdornment position="start">
+          <EmailOutlinedIcon />
+        </InputAdornment>
+      ),
+    },
+  }}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             error={!!emailError}
@@ -144,14 +171,16 @@ export const LoginPage: React.FC = () => {
             label="Password"
             placeholder="Enter your password"
             margin="normal"
-            autoComplete="new-password"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <LockOutlinedIcon sx={{ color: "grey.500" }} />
-                </InputAdornment>
-              ),
-            }}
+            autoComplete="off"
+            slotProps={{
+    input: {
+      startAdornment: (
+        <InputAdornment position="start">
+          <LockOutlinedIcon></LockOutlinedIcon>
+        </InputAdornment>
+      ),
+    },
+  }}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             error={!!passwordError}
@@ -225,5 +254,6 @@ export const LoginPage: React.FC = () => {
         </Typography>
       </Paper>
     </Container>
+    </motion.div>
   );
 };
