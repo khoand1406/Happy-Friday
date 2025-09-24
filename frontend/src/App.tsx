@@ -1,19 +1,18 @@
 // src/App.tsx
-import Button from '@mui/material/Button'
-import Container from '@mui/material/Container'
-import Typography from '@mui/material/Typography'
 import React from 'react'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { LoginPage } from './pages/LoginPage'
 
 const App: React.FC = () => {
   return (
-    <Container sx={{ textAlign: 'center', marginTop: 8 }}>
-      <Typography variant="h4" gutterBottom>
-        Hello React + MUI + TypeScript
-      </Typography>
-      <Button variant="contained" color="primary">
-        Click Me
-      </Button>
-    </Container>
+    <BrowserRouter>
+      <Routes>
+        <Route element= {<LoginPage></LoginPage>} path='/'></Route>
+        <Route element= {<LoginPage></LoginPage>} path='/login'></Route>
+        <Route element= {<></>} path='/Admin/Dashboard'></Route>
+    </Routes>
+    </BrowserRouter>
+    
   )
 }
 
