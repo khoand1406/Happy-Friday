@@ -1,6 +1,6 @@
 import React from "react";
 import { CompanyStructure } from "../components/MemberDepartment";
-import { MainLayout } from "../layout/MainLayout";
+import  MainLayout  from "../layout/MainLayout";
 
 const companyMock = {
   name: "Zen8Labs",

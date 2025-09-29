@@ -8,7 +8,7 @@ import {
   Avatar,
   CardHeader
 } from "@mui/material";
-import { MainLayout } from "../layout/MainLayout";
+import  MainLayout from "../layout/MainLayout";
 
 // Mock data: bạn thay bằng API call
 const employees = [
