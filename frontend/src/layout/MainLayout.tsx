@@ -15,24 +15,37 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import type { layoutProps } from "../props/LayoutProp";
-
+import { useNavigate } from "react-router-dom";
 
 export const MainLayout: React.FC<layoutProps> = ({ children }) => {
   const drawerWidth = 240;
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const isDesktop = useMediaQuery((theme: Theme) => theme.breakpoints.up("md"));
+  const navigate= useNavigate();
 
   const handleMobileToggle = () => {
     setIsMobileOpen(!isMobileOpen);
   };
 
+  const menuItems = [
+    { label: "Dashboard", path: "/dashboard" },
+    { label: "Members", path: "/members" },
+    { label: "Departments", path: "/departments" },
+    { label: "Projects", path: "/projects" },
+  ];
+
   const drawer = (
     <Box sx={{ overflow: "auto" }}>
       <List>
-        {["Dashboard", "Members", "Departments", "Projects"].map((item) => (
-          <ListItem key={item} disablePadding>
-            <ListItemButton>
-              <ListItemText primary={item}></ListItemText>
+        {menuItems.map((item) => (
+          <ListItem key={item.path} disablePadding>
+            <ListItemButton
+              onClick={() => {
+                navigate(item.path);
+                if (!isDesktop) setIsMobileOpen(false);
+              }}
+            >
+              <ListItemText primary={item.label}></ListItemText>
             </ListItemButton>
           </ListItem>
         ))}
