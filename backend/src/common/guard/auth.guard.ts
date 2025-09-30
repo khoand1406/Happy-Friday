@@ -17,7 +17,6 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Missing token from headers');
     }
     try {
-      console.log(token)
       const payload = await this.jwtService.verifyAsync(token, {secret: process.env.JWT_SECRET});
       (request as any).user = payload;
       return true;

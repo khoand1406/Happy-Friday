@@ -24,6 +24,7 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import BusinessIcon from "@mui/icons-material/Business";
 import WorkIcon from "@mui/icons-material/Work";
+import { useNavigate } from "react-router-dom";
 
 const drawerWidth = 240;
 
@@ -78,6 +79,10 @@ export default function MainLayout(props: Props) {
   const handleClose = () => {
     setAnchorEl(null);
   };
+  const navigate= useNavigate();
+  const handleProfile= ()=>{
+    navigate('/profile');
+  }
 
   const menuItems = [
     { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
@@ -143,7 +148,7 @@ export default function MainLayout(props: Props) {
             <Avatar alt="User" />
           </IconButton>
           <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-            <MenuItem onClick={handleClose}>Profile</MenuItem>
+            <MenuItem onClick={handleProfile}>Profile</MenuItem>
             <MenuItem onClick={handleClose}>Logout</MenuItem>
           </Menu>
         </Toolbar>
