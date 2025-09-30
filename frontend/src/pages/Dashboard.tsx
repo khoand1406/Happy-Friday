@@ -10,7 +10,8 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import type { Update } from "../props/Mock";
-import { MainLayout } from "../layout/MainLayout";
+import MainLayout from "../layout/MainLayout";
+
 
 export const DashboardPage = () => {
   const [search, setSearch] = useState("");
