@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, NotFoundException, Param, Patch, Query, Req, UseGuards } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { JwtAuthGuard } from "src/common/guard/auth.guard";
+import { UserProfileResponse } from "./dto/profile.dto";
 
 @Controller('users')
 export class UserController{
@@ -13,14 +14,20 @@ export class UserController{
         return result;
     }
     @UseGuards(JwtAuthGuard)
-    @Get('me/:userId')
-    async getUserProfile(@Param('userId') userId: string){
+    @Get('me/')
+    async getUserProfile(@Req() req){
+        const user= req.user;
+        if(!user){
+            return new NotFoundException("User not found");
+        }
+        
+        const userId= user.sub;
         const result= await this.userServices.getUserProfile(userId);
-        return result;
+        return result as UserProfileResponse;
     }
 
     @UseGuards(JwtAuthGuard)
-    @Patch('profile/:userId')
+    @Patch('me/:userId')
     async updateUserProfile(@Param('userId') userId: string, @Body() updatePayload: any){
         const result= await this.userServices.UpdateUserProfile(userId, updatePayload);
         return result;

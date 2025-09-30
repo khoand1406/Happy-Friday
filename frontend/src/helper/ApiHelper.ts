@@ -79,6 +79,21 @@ class ApiHelper {
       this.handleError(error);
     }
   }
+
+  async get(url: string, param?: any): Promise<any>{
+    try {
+      const token= localStorage.getItem("accessToken");
+      const response= await axios.get(url, {
+        headers: {
+          "Content-Type":"application/json",
+          Authorization: `Bearer ${token}`
+        }, params: param
+      });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
 }
 
 export default ApiHelper;

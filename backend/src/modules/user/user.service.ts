@@ -21,10 +21,11 @@ export class UserService {
 
   async getUserProfile(userId: string) {
     const { data, error } = await supabaseAdmin
-      .from('profile_full')
+      .from('profile_with_projects_json')
       .select('*')
-      .eq('profile_id', userId)
+      .eq('id', userId)
       .single();
+      
 
     if (error)
       throw new InternalServerErrorException(

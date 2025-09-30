@@ -1,10 +1,4 @@
-export class UpdateUserProfileDTO{
-    name: string
-    phone: string
-    department: number
-}
-
-export class UserProfileResponse{
+export interface UserProfileResponse{
     name: string;
     email: string;
     phone: string;
