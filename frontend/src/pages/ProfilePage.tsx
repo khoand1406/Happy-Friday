@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { UserProfileResponse } from "../models/response/user.response";
-import { getUserProfile } from "../services/user.service";
+import { getUserProfile, updateUserProfile } from "../services/user.service";
 import { toast, ToastContainer } from "react-toastify";
 import { AxiosError } from "axios";
 import MainLayout from "../layout/MainLayout";
@@ -32,6 +32,10 @@ export const ProfilePage: React.FC = () => {
     getUserProfiles();
   }, []);
 
+  const updateSubmit= async (formdata:FormData) => {
+    return await updateUserProfile(formdata);
+  }
+
   return (
     <MainLayout>
     {loading ? (
@@ -42,7 +46,9 @@ export const ProfilePage: React.FC = () => {
         <Skeleton variant="rectangular" width="100%" height={200} sx={{ mt: 2 }} />
       </Box>
     ) : currentUser ? (
-      <UserProfile {...currentUser} />
+      <UserProfile updateSubmit={function (): void {
+            updateSubmit;
+          } } {...currentUser} />
     ) : (
       <p>No user profile found.</p>
     )}

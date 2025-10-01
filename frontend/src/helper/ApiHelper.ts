@@ -80,10 +80,10 @@ class ApiHelper {
     }
   }
 
-  async get(url: string, param?: any): Promise<any>{
+  async get(endpoint: string, param?: any): Promise<any>{
     try {
       const token= localStorage.getItem("accessToken");
-      const response= await axios.get(url, {
+      const response= await axios.get(`${this.baseURL}${endpoint}`, {
         headers: {
           "Content-Type":"application/json",
           Authorization: `Bearer ${token}`

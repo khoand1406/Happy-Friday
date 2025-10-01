@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { supabaseAdmin } from 'src/config/database.config';
+import { UpdateUserProfileDTO } from './dto/profile.dto';
 
 @Injectable()
 export class UserService {
@@ -34,11 +35,11 @@ export class UserService {
     return data;
   }
 
-  async UpdateUserProfile(userId: string, payload: any) {
+  async UpdateUserProfile(userId: string, payload: UpdateUserProfileDTO) {
     const { data, error } = await supabaseAdmin
-      .from('profile_full')
+      .from('users')
       .update(payload)
-      .eq('profile_id', userId)
+      .eq('id', userId)
       .select('*')
       .single();
 

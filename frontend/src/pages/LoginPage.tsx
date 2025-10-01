@@ -13,10 +13,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
-import { authenticated } from "../services/auth.service";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ACCESS_TOKEN, AVATAR_URL } from "../constraint/LocalStorage";
+import { authenticated } from "../services/auth.service";
 
 export const LoginPage: React.FC = () => {
   
@@ -65,11 +66,11 @@ export const LoginPage: React.FC = () => {
     });
 
     if (res) {
-      
-      localStorage.setItem("token", res.access_token);
+      localStorage.clear();
+      localStorage.setItem(ACCESS_TOKEN, res.access_token);
+      localStorage.setItem(AVATAR_URL, res.user.avatar_url)
       navigate('/dashboard');
     } else {
-      
       setPasswordError("Invalid email or password");
     }
   } catch (err) {
@@ -115,7 +116,7 @@ export const LoginPage: React.FC = () => {
             width: { xs: 48, sm: 56 },
             height: { xs: 48, sm: 56 },
           }}
-          src="../assets/images/zen8labs_logo.jpeg"
+          src="/assets/images/zen8labs_logo.jpeg"
         />
 
         <Typography
@@ -126,7 +127,7 @@ export const LoginPage: React.FC = () => {
             fontSize: { xs: "1.25rem", sm: "1.5rem" },
           }}
         >
-          Zen8labs' Portal
+          Zen8labs Portal
         </Typography>
         <Typography
           variant="body2"
