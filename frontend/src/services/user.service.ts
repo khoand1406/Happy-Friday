@@ -1,7 +1,9 @@
 import { AxiosError } from "axios";
-import { BaseURl, UPDATE_PROFILE, USER_PROFILE } from "../constraint/ApiConstraint";
+import { BaseURl, CHANGE_PASSWORD, UPDATE_PROFILE, USER_PROFILE } from "../constraint/ApiConstraint";
 import ApiHelper from "../helper/ApiHelper"
 import type { UserProfileResponse, UserUpdateResponse } from "../models/response/user.response"
+import type { ChangePasswordRequest } from "../models/request/auth/auth.request";
+import type { ChangePasswordResponse } from "../models/response/auth.response";
 
 
 export const getUserProfile= async(): Promise<UserProfileResponse> => {
@@ -27,6 +29,20 @@ export const updateUserProfile= async(formData: FormData): Promise<UserUpdateRes
         if(error instanceof AxiosError){
             throw new AxiosError(error.message);
         }
+        throw error;
+    }
+}
+
+export const changePassword= async(model: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
+    try {
+        const apiHelper= new ApiHelper(BaseURl);
+        const response= await apiHelper.post(`${CHANGE_PASSWORD}`, model);
+        return response as ChangePasswordResponse
+    } catch (error) {
+        if(error instanceof AxiosError){
+            throw error;
+        }
+        
         throw error;
     }
 }

@@ -18,6 +18,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ACCESS_TOKEN, AVATAR_URL } from "../constraint/LocalStorage";
 import { authenticated } from "../services/auth.service";
+import { ToastContainer } from "react-toastify";
 
 export const LoginPage: React.FC = () => {
   
@@ -255,6 +256,8 @@ export const LoginPage: React.FC = () => {
         </Typography>
       </Paper>
     </Container>
+    <ToastContainer autoClose= {2} position="top-right" pauseOnHover= {false} ></ToastContainer>
     </motion.div>
+    
   );
 };
