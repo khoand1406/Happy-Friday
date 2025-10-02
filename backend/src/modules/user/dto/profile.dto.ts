@@ -1,7 +1,15 @@
+import { IsNotEmpty, IsPhoneNumber } from "class-validator";
+
+
 export class UpdateUserProfileDTO{
+    @IsNotEmpty()
     name: string
+
+    @IsNotEmpty()
+    @IsPhoneNumber("VN", {message: "Invalid phone number format"})
     phone: string
-    department: number
+
+    avatar_url:string| undefined
 }
 
 export class UserProfileResponse{

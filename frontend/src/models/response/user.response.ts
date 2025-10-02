@@ -6,3 +6,13 @@ export interface UserProfileResponse{
     avatar_url: string;
     projects: { project_id: number; project_name: string; description: number, status: string, project_role: string }[];
 }
+
+export interface UserUpdateResponse{
+    id: string;
+    created_at: Date
+    name: string;
+    phone: string;
+    role_id: number;
+    department_id: number;
+    avatar_url: string;
+}

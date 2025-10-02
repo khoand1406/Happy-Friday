@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, MinLength } from "class-validator"
+import { isEmail, IsEmail, isNotEmpty, IsNotEmpty, MinLength } from "class-validator"
 
 export class LoginRequestDto {
 
@@ -9,4 +9,12 @@ export class LoginRequestDto {
     @IsNotEmpty({message: 'Password is required'})
     @MinLength(6, {message: 'Password length must greater than 6'})
     password: string;
+}
+
+
+
+export class ForgetPasswordDto{
+    @IsNotEmpty()
+    @IsEmail()
+    confirmEmail: string
 }
