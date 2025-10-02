@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { supabase, supabaseAdmin } from 'src/config/database.config';
+import { ForgetPasswordDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -59,5 +60,9 @@ export class AuthService {
       access_token: this.JWTService.sign(payload),
       user,
     };
+  }
+
+  async forgetPassword(model: ForgetPasswordDto){
+
   }
 }

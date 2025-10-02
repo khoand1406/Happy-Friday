@@ -20,7 +20,8 @@ export const getUserProfile= async(): Promise<UserProfileResponse> => {
 export const updateUserProfile= async(formData: FormData): Promise<UserUpdateResponse>=> {
     try {
         const apiHelper= new ApiHelper(BaseURl);
-        const response= await apiHelper.postformdata(`${UPDATE_PROFILE}`, formData);
+        const response= await apiHelper.patchformdata(`${UPDATE_PROFILE}`, formData);
+        
         return response as UserUpdateResponse;
     } catch (error) {
         if(error instanceof AxiosError){

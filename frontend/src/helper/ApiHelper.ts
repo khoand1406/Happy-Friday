@@ -64,6 +64,21 @@ class ApiHelper {
     }
   }
 
+  async patchformdata(url: string, formData: FormData):Promise<any>{
+    try {
+      const token= localStorage.getItem("accessToken");
+      const response= await axios.patch(`${this.baseURL}${url}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`
+        },
+      });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   async post(url: string, data: any): Promise<any> {
     try {
       const token = localStorage.getItem("accessToken");

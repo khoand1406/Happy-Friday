@@ -32,6 +32,7 @@ import {
 } from "../components/SearchComponent";
 import SearchIcon from "@mui/icons-material/Search";
 import { ACCESS_TOKEN, AVATAR_URL } from "../constraint/LocalStorage";
+import { useUser } from "../context/UserContext";
 
 const drawerWidth = 240;
 
@@ -54,7 +55,10 @@ export default function MainLayout(props: Props) {
   // User menu
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  const userAvatar= localStorage.getItem(AVATAR_URL);
+
+  const localAvatar= localStorage.getItem(AVATAR_URL);
+  const {user}= useUser();
+
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -158,7 +162,7 @@ export default function MainLayout(props: Props) {
 
             {/* User */}
             <IconButton onClick={handleClick} sx={{ ml: 2 }}>
-              <Avatar alt="User" src={userAvatar ? userAvatar : undefined} />
+              <Avatar alt="User" src={user?.avatar_url || localAvatar || ""} />
             </IconButton>
             <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
               <MenuItem onClick={handleProfile}>Profile</MenuItem>

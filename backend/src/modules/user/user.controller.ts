@@ -47,6 +47,13 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('/member-list/:depId')
+  async getMemberbyDep(@Param('depId') depId){
+    const result= await this.userServices.GetMembesrByDep(depId);
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('me/update_profile')
   @UseInterceptors(FileInterceptor('avatar_url'))
   async updateUserProfile(

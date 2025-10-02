@@ -15,6 +15,7 @@ import MainLayout from "../layout/MainLayout";
 
 export const DashboardPage = () => {
   const [search, setSearch] = useState("");
+  
 
   const mockUpdates: Update[] = [
     {

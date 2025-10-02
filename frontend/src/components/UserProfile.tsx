@@ -1,23 +1,24 @@
-import React from "react";
 import {
   Avatar,
   Box,
   Button,
   Card,
   CardContent,
-  Grid,
-  Tab,
-  Tabs,
-  Typography,
-  TextField,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Grid,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
 } from "@mui/material";
-import type { UserProfileProps } from "../props/UserProps";
 import { AxiosError } from "axios";
+import React from "react";
 import { toast } from "react-toastify";
+import type { UserProfileProps } from "../props/UserProps";
 
 
 
@@ -36,6 +37,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
   const [formPhone, setFormPhone] = React.useState(phone);
   const [formAvatar, setFormAvatar] = React.useState<File | null>(null);
   const [preview, setPreview] = React.useState<string | null>(avatar_url);
+  const [loading, setLoading]= React.useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -49,11 +51,13 @@ const UserProfile: React.FC<UserProfileProps> = ({
     const formData = new FormData();
     formData.append("name", formName);
     formData.append("phone", formPhone);
-    if (formAvatar) formData.append("avatar", formAvatar);
+    if (formAvatar) formData.append("avatar_url", formAvatar);
 
     try {
+      setLoading(true);
       await updateSubmit(formData);
       toast.success("Profile updated successfully!");
+      
     } catch (error) {
       if (error instanceof AxiosError) {
         const msg =
@@ -63,6 +67,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
         toast.error("Unexpected Error: " + String(error));
       }
     } finally {
+      setLoading(false);
       setOpenEdit(false);
     }
   };
@@ -273,8 +278,8 @@ const UserProfile: React.FC<UserProfileProps> = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSubmit}>
-            Save
+          <Button variant="contained" onClick={handleSubmit} disabled= {loading}>
+             {loading ? <CircularProgress size={24} color="inherit" /> : "Update Profile"}
           </Button>
         </DialogActions>
       </Dialog>
