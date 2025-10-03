@@ -1,6 +1,6 @@
-import * as React from "react";
 import {
   AppBar,
+  Avatar,
   Box,
   CssBaseline,
   Divider,
@@ -11,28 +11,28 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Toolbar,
-  Avatar,
   Menu,
   MenuItem,
   Switch,
+  Toolbar,
 } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
+import * as React from "react";
 
-import MenuIcon from "@mui/icons-material/Menu";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import MenuIcon from "@mui/icons-material/Menu";
 import PeopleIcon from "@mui/icons-material/People";
+import SearchIcon from "@mui/icons-material/Search";
 import WorkIcon from "@mui/icons-material/Work";
-import { useNavigate, useLocation } from "react-router-dom";
-import { darkTheme, lightTheme } from "../theme/theme";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Search,
   SearchIconWrapper,
   StyledInputBase,
 } from "../components/SearchComponent";
-import SearchIcon from "@mui/icons-material/Search";
 import { ACCESS_TOKEN, AVATAR_URL } from "../constraint/LocalStorage";
 import { useUser } from "../context/UserContext";
+import { darkTheme, lightTheme } from "../theme/theme";
 
 const drawerWidth = 240;
 
@@ -155,6 +155,7 @@ export default function MainLayout(props: Props) {
                 inputProps={{ "aria-label": "search" }}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                autoComplete="false"
               />
             </Search>
             {/* Theme Switch */}

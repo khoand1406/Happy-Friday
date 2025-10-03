@@ -20,8 +20,6 @@ import React from "react";
 import { toast } from "react-toastify";
 import type { UserProfileProps } from "../props/UserProps";
 
-
-
 const UserProfile: React.FC<UserProfileProps> = ({
   name,
   email,
@@ -29,15 +27,21 @@ const UserProfile: React.FC<UserProfileProps> = ({
   department_name,
   avatar_url,
   projects,
-  updateSubmit
+  updateSubmit,
+  changePassword,
 }) => {
   const [tab, setTab] = React.useState(0);
   const [openEdit, setOpenEdit] = React.useState(false);
+  const [openChangePass, setOpenChangePass] = React.useState(false);
   const [formName, setFormName] = React.useState(name);
   const [formPhone, setFormPhone] = React.useState(phone);
   const [formAvatar, setFormAvatar] = React.useState<File | null>(null);
   const [preview, setPreview] = React.useState<string | null>(avatar_url);
-  const [loading, setLoading]= React.useState(false);
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const [loadingPass, setLoadingPass] = React.useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -47,7 +51,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
     }
   };
 
-   const handleSubmit = async () => {
+  const handleSubmit = async () => {
     const formData = new FormData();
     formData.append("name", formName);
     formData.append("phone", formPhone);
@@ -57,7 +61,6 @@ const UserProfile: React.FC<UserProfileProps> = ({
       setLoading(true);
       await updateSubmit(formData);
       toast.success("Profile updated successfully!");
-      
     } catch (error) {
       if (error instanceof AxiosError) {
         const msg =
@@ -69,6 +72,41 @@ const UserProfile: React.FC<UserProfileProps> = ({
     } finally {
       setLoading(false);
       setOpenEdit(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match!");
+      return;
+    }
+
+    try {
+      setLoadingPass(true);
+      await changePassword({
+        email,
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+      setOpenChangePass(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      if (error instanceof AxiosError) {
+    const data = error.response?.data;
+
+    if (Array.isArray(data?.message)) {
+      toast.error(data.message.join("\n"));
+    } else {
+      toast.error(data?.message || error.message || "Something went wrong");
+    }
+  } else {
+    toast.error("Unexpected Error: " + String(error));
+  }
+    } finally {
+      setLoadingPass(false);
     }
   };
 
@@ -86,10 +124,20 @@ const UserProfile: React.FC<UserProfileProps> = ({
           {department_name}
         </Typography>
         <Box sx={{ mt: 2 }}>
-          <Button variant="contained" sx={{ mr: 2 }} onClick={()=> {setOpenEdit(true)}}>
+          <Button
+            variant="contained"
+            sx={{ mr: 2 }}
+            onClick={() => {
+              setOpenEdit(true);
+            }}
+          >
             Edit Profile
           </Button>
-          <Button variant="outlined" color="error">
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => setOpenChangePass(true)}
+          >
             Change Password
           </Button>
         </Box>
@@ -209,37 +257,6 @@ const UserProfile: React.FC<UserProfileProps> = ({
               )}
             </Grid>
           )}
-
-          {tab === 2 && (
-            <Box component="form" sx={{ maxWidth: 400 }}>
-              <TextField
-                label="Current Password"
-                type="password"
-                fullWidth
-                margin="normal"
-              />
-              <TextField
-                label="New Password"
-                type="password"
-                fullWidth
-                margin="normal"
-              />
-              <TextField
-                label="Confirm New Password"
-                type="password"
-                fullWidth
-                margin="normal"
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                fullWidth
-                sx={{ mt: 2 }}
-              >
-                Update Password
-              </Button>
-            </Box>
-          )}
         </CardContent>
       </Card>
       <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth>
@@ -278,8 +295,69 @@ const UserProfile: React.FC<UserProfileProps> = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSubmit} disabled= {loading}>
-             {loading ? <CircularProgress size={24} color="inherit" /> : "Update Profile"}
+          <Button variant="contained" onClick={handleSubmit} disabled={loading}>
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Update Profile"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openChangePass}
+        onClose={() => setOpenChangePass(false)}
+        fullWidth
+      >
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <TextField
+              label="email"
+              fullWidth
+              value={email}
+              disabled
+            ></TextField>
+            <TextField
+              label="Current Password"
+              type="password"
+              fullWidth
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              
+            />
+            <TextField
+              label="New Password"
+              type="password"
+              fullWidth
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              
+            />
+            <TextField
+              label="Confirm New Password"
+              type="password"
+              fullWidth
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenChangePass(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleChangePassword}
+            disabled={loadingPass}
+          >
+            {loadingPass ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Update Password"
+            )}
           </Button>
         </DialogActions>
       </Dialog>

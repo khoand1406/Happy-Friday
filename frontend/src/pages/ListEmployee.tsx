@@ -8,40 +8,62 @@ import {
   Avatar,
   CardHeader
 } from "@mui/material";
-import  MainLayout from "../layout/MainLayout";
+import MainLayout from "../layout/MainLayout";
 
-// Mock data: bạn thay bằng API call
-const employees = [
-  { id: 1, name: "Nguyễn Văn A", title: "Trưởng phòng", departmentId: 1 },
-  { id: 2, name: "Trần Thị B", title: "Kỹ sư Backend", departmentId: 1 },
-  { id: 3, name: "Lê Văn C", title: "Tester", departmentId: 2 },
-  { id: 4, name: "Phạm Thị D", title: "DevOps", departmentId: 1 }
-];
+import type { UserResponse } from "../models/response/user.response";
+import { getMemberByDep } from "../services/user.service";
 
 export default function DepartmentDetail() {
   const { id } = useParams();
-  const [deptEmployees, setDeptEmployees] = useState<any[]>([]);
+  const [deptEmployees, setDeptEmployees] = useState<UserResponse[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const data = employees.filter(
-      (e) => e.departmentId === Number(id)
-    );
-    setDeptEmployees(data);
+    if (!id) return;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const data = await getMemberByDep(Number(id));
+        setDeptEmployees(data);
+      } catch (err) {
+        console.error("Failed to fetch members:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [id]);
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <Typography>Đang tải dữ liệu...</Typography>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
       <Grid container spacing={2}>
         {deptEmployees.map((emp) => (
-          <Grid size= {{xs: 12, sm: 6, md: 4}}  key={emp.id}>
+          <Grid size= {{xs: 12, sm: 6, md: 4}} key={emp.user_id}>
             <Card>
               <CardHeader
-                avatar={<Avatar>{emp.name[0]}</Avatar>}
+                avatar={
+                  <Avatar src={emp.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            emp.name
+                          )}&background=random`}>
+                    {emp.name ? emp.name[0] : "?"}
+                  </Avatar>
+                }
                 title={emp.name}
-                subheader={emp.title}
+                subheader={emp.department_name + " - " + emp.email}
               />
               <CardContent>
-                <Typography variant="body2">ID: {emp.id}</Typography>
+                <Typography variant="body2">{emp.department_name}</Typography>
+                <Typography variant="body2">Phone: {emp.phone}</Typography>
               </CardContent>
             </Card>
           </Grid>

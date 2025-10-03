@@ -5,6 +5,7 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Post,
   Query,
   Req,
   UploadedFile,
@@ -17,6 +18,8 @@ import { UpdateUserProfileDTO, UserProfileResponse } from './dto/profile.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpLoadToCloundinary } from '../upload/upload.service';
 import { File as MulterFile } from 'multer';
+import { ChangePasswordDto } from './dto/change_password.dto';
+
 
 @Controller('users')
 export class UserController {
@@ -75,6 +78,13 @@ export class UserController {
       ...updatePayload,
       avatar_url,
     });
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(@Body() payload: ChangePasswordDto){
+    const result= await this.userServices.changePassword(payload);
     return result;
   }
 }
