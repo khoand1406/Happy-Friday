@@ -357,35 +357,35 @@ SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 22, true);
 -- Name: Department_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"public"."Department_id_seq"', 8, true);
+SELECT pg_catalog.setval('public.department_id_seq', 8, true);
 
 
 --
 -- Name: Project_Members_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"public"."Project_Members_id_seq"', 10, true);
+SELECT pg_catalog.setval('public.project_members_id_seq', 10, true);
 
 
 --
 -- Name: Projects_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"public"."Projects_id_seq"', 3, true);
+SELECT pg_catalog.setval('"public"."projects_id_seq"', 3, true);
 
 
 --
 -- Name: Role_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"public"."Role_id_seq"', 2, true);
+SELECT pg_catalog.setval('public.role_id_seq', 2, true);
 
 
 --
 -- Name: notification_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"public"."notification_id_seq"', 1, false);
+SELECT pg_catalog.setval('public.notification_id_seq', 1, false);
 
 
 --
