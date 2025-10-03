@@ -16,3 +16,13 @@ export interface UserUpdateResponse{
     department_id: number;
     avatar_url: string;
 }
+
+export interface UserResponse{
+    user_id: string;
+    name: string;
+    phone: string;
+    email: string
+    department_id: number;
+    department_name: string
+    avatar_url: string;
+}
