@@ -6,12 +6,20 @@ export class DepartmentService {
   async getDepartment() {
     const { data, error } = await supabaseAdmin
     .from('department')
-    .select('*');
-    
-    if (error) {
-      throw new InternalServerErrorException(error.message);
-    }
+    .select(`
+      id,
+      name,
+      users(count)
+    `);
 
-    return data;
+  if (error) {
+    throw new InternalServerErrorException(error.message);
+  }
+
+  return data.map((dept: any) => ({
+    id: dept.id,
+    name: dept.name,
+    memberCount: dept.users[0]?.count ?? 0,
+  }));
   }
 }
