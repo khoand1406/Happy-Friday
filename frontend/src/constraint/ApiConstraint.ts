@@ -1,5 +1,5 @@
 // export const BaseURl= "http://localhost:3000"
-export const BaseURl= "https://happyfriday-e9fbdygvebf9e6dv.southeastasia-01.azurewebsites.net/"
+export const BaseURl= "https://happyfriday-e9fbdygvebf9e6dv.southeastasia-01.azurewebsites.net"
 export const LOGIN= '/api/auth/login'
 
 export const USER_PROFILE= '/api/users/me'
