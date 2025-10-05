@@ -9,7 +9,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:5173',
-      'https://proud-bay-0acae0c00.2.azurestaticapps.net/',
+      'https://proud-bay-0acae0c00.2.azurestaticapps.net',
     ],
     credentials: true,
   });
