@@ -1,95 +1,58 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { CompanyStructure } from "../components/MemberDepartment";
-import  MainLayout  from "../layout/MainLayout";
+import MainLayout from "../layout/MainLayout";
+import { getDepartments } from "../services/department.sertvice";
+import type { DepartmentResponse } from "../models/response/dep.response";
+import { Alert, Box, CircularProgress } from "@mui/material";
 
-const companyMock = {
-  name: "Zen8Labs",
-  departments: [
-    {
-      id: 1,
-      name: "Engineering",
-      color: "#1976d2",
-      employees: Array.from({ length: 15 }).map((_, i) => ({
-        id: i + 1,
-        name: `Engineer ${i + 1}`,
-        avatarUrl: `https://i.pravatar.cc/150?img=${i + 1}`,
-      })),
-    },
-    {
-      id: 2,
-      name: "Design",
-      color: "#9c27b0",
-      employees: Array.from({ length: 10 }).map((_, i) => ({
-        id: i + 100,
-        name: `Designer ${i + 1}`,
-        avatarUrl: `https://i.pravatar.cc/150?img=${i + 10}`,
-      })),
-    },
-    {
-      id: 3,
-      name: "Sales",
-      color: "#9c27b0",
-      employees: Array.from({ length: 10 }).map((_, i) => ({
-        id: i + 100,
-        name: `Designer ${i + 1}`,
-        avatarUrl: `https://i.pravatar.cc/150?img=${i + 10}`,
-      })),
-    },
-    {
-      id: 4,
-      name: "Design",
-      color: "#9c27b0",
-      employees: Array.from({ length: 10 }).map((_, i) => ({
-        id: i + 100,
-        name: `Designer ${i + 1}`,
-        avatarUrl: `https://i.pravatar.cc/150?img=${i + 10}`,
-      })),
-    },
-    {
-      id: 5,
-      name: "Design",
-      color: "#9c27b0",
-      employees: Array.from({ length: 10 }).map((_, i) => ({
-        id: i + 100,
-        name: `Designer ${i + 1}`,
-        avatarUrl: `https://i.pravatar.cc/150?img=${i + 10}`,
-      })),
-    },
-    {
-      id: 6,
-      name: "Design",
-      color: "#9c27b0",
-      employees: Array.from({ length: 10 }).map((_, i) => ({
-        id: i + 100,
-        name: `Designer ${i + 1}`,
-        avatarUrl: `https://i.pravatar.cc/150?img=${i + 10}`,
-      })),
-    },
-    {
-      id: 7,
-      name: "Design",
-      color: "#9c27b0",
-      employees: Array.from({ length: 10 }).map((_, i) => ({
-        id: i + 100,
-        name: `Designer ${i + 1}`,
-        avatarUrl: `https://i.pravatar.cc/150?img=${i + 10}`,
-      })),
-    },
-    {
-      id: 8,
-      name: "Design",
-      color: "#9c27b0",
-      employees: Array.from({ length: 10 }).map((_, i) => ({
-        id: i + 100,
-        name: `Designer ${i + 1}`,
-        avatarUrl: `https://i.pravatar.cc/150?img=${i + 10}`,
-      })),
-    },
-  ],
-};
+
 
 export const MembersPage: React.FC = () => {
-  return <MainLayout>
-    <CompanyStructure company={companyMock} />
-    </MainLayout>;
+  const [company, setCompany] = useState<DepartmentResponse[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const data = await getDepartments();
+        setCompany(data);
+      } catch (err: any) {
+        setError(err.message || "Failed to load departments");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
+ if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box m={2}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
+  if (!company) {
+    return (
+      <Box m={2}>
+        <Alert severity="info">No departments available</Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <MainLayout>
+      <CompanyStructure department={company} />
+    </MainLayout>
+  );
 };
