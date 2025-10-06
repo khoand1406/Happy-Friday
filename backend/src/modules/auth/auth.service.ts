@@ -7,7 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { supabase, supabaseAdmin } from 'src/config/database.config';
 import { ForgetPasswordDto } from './dto/auth.dto';
-
+import nodemailer from 'nodemailer'
 @Injectable()
 export class AuthService {
   constructor(private readonly JWTService: JwtService) {}
@@ -67,7 +67,36 @@ export class AuthService {
     };
   }
 
-  async forgetPassword(model: ForgetPasswordDto){
+  async sendOTP(model: ForgetPasswordDto){
+    const otp= Math.floor(100000 +Math.random() * 900000).toString();
 
+    await supabaseAdmin.from('password_reset_otp').insert({
+      email: model.confirmEmail,
+      otp,
+      expired_at: new Date(Date.now() + 10 * 60 * 1000)
+    });
+
+
+    const transporter= nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: process.env.MAIL_PORT ? parseInt(process.env.MAIL_PORT) : 587,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS
+      }
+    });
+
+    await transporter.sendMail({
+      from: '"Zen8labs" <no-reply@zen8labs.online>',
+      to: model.confirmEmail,
+      subject: 'Password Reset OTP',
+      text: `Your OTP for password reset is ${otp}. It is valid for 10 minutes.`,
+      html: `<p>Your OTP for password reset is <b>${otp}</b>. It is valid for 10 minutes.</p>`
+    })
   }
+
+  async verifyOTP(email: string, otp: string){
+    
+  }
+
 }

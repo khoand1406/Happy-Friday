@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { CompanyStructure } from "../components/MemberDepartment";
 import MainLayout from "../layout/MainLayout";
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
 import { Alert, Box, CircularProgress } from "@mui/material";
+import { DepartmentOrgChart } from "../components/DepartmentOrgChart";
+
 
 
 
@@ -52,7 +53,7 @@ export const MembersPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <CompanyStructure department={company} />
+      <DepartmentOrgChart departments={company} />
     </MainLayout>
   );
 };
