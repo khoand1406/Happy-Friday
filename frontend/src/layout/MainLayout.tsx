@@ -39,10 +39,11 @@ const drawerWidth = 240;
 interface Props {
   window?: () => Window;
   children: React.ReactNode;
+  showDrawer?: boolean;
 }
 
 export default function MainLayout(props: Props) {
-  const { window, children } = props;
+  const { window, children, showDrawer = true } = props;
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [darkMode, setDarkMode] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -173,40 +174,42 @@ export default function MainLayout(props: Props) {
         </AppBar>
 
         {/* Sidebar */}
-        <Box
-          component="nav"
-          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        >
-          <Drawer
-            container={container}
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            ModalProps={{ keepMounted: true }}
-            sx={{
-              display: { xs: "block", sm: "none" },
-              "& .MuiDrawer-paper": {
-                boxSizing: "border-box",
-                width: drawerWidth,
-              },
-            }}
+        {showDrawer && (
+          <Box
+            component="nav"
+            sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
           >
-            {drawer}
-          </Drawer>
-          <Drawer
-            variant="permanent"
-            sx={{
-              display: { xs: "none", sm: "block" },
-              "& .MuiDrawer-paper": {
-                boxSizing: "border-box",
-                width: drawerWidth,
-              },
-            }}
-            open
-          >
-            {drawer}
-          </Drawer>
-        </Box>
+            <Drawer
+              container={container}
+              variant="temporary"
+              open={mobileOpen}
+              onClose={handleDrawerToggle}
+              ModalProps={{ keepMounted: true }}
+              sx={{
+                display: { xs: "block", sm: "none" },
+                "& .MuiDrawer-paper": {
+                  boxSizing: "border-box",
+                  width: drawerWidth,
+                },
+              }}
+            >
+              {drawer}
+            </Drawer>
+            <Drawer
+              variant="permanent"
+              sx={{
+                display: { xs: "none", sm: "block" },
+                "& .MuiDrawer-paper": {
+                  boxSizing: "border-box",
+                  width: drawerWidth,
+                },
+              }}
+              open
+            >
+              {drawer}
+            </Drawer>
+          </Box>
+        )}
 
         {/* Content */}
         <Box
@@ -214,7 +217,7 @@ export default function MainLayout(props: Props) {
           sx={{
             flexGrow: 1,
             p: 3,
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            width: { sm: showDrawer ? `calc(100% - ${drawerWidth}px)` : '100%' },
             mt: 8,
             minHeight: "100vh",
           }}
