@@ -38,11 +38,15 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     const user = data.user;
+    // DEBUG LOGS - remove after verification
+    console.log('[Auth] SUPABASE_URL:', process.env.SUPABASE_URL);
+    console.log('[Auth] login user.id:', user.id, 'email:', user.email);
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('avatar_url')
+      .select('avatar_url, role_id')
       .eq('id', user.id)
       .single();
+    console.log('[Auth] db profile:', profile);
     if (profileError)
       throw new InternalServerErrorException(
         'Internal Server Error: ' + profileError.message,
@@ -50,7 +54,8 @@ export class AuthService {
 
     return {
       ...user,
-      avatar_url: profile?.avatar_url ?? null,
+      role_id: profile?.role_id ?? null,
+      avatar_url: profile?.avatar_url ?? null
     };
   }
 

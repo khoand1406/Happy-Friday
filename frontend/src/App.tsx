@@ -6,6 +6,7 @@ import { MembersPage } from './pages/MemberPage'
 import DepartmentDetail from './pages/ListEmployee'
 import { ProfilePage } from './pages/ProfilePage'
 import { ForgetPassword } from './pages/ForgetPassword'
+import { AdminDashboard } from './pages/AdminDashboard'
 
 const App: React.FC = () => {
   return (
@@ -18,7 +19,8 @@ const App: React.FC = () => {
         <Route element= {<DepartmentDetail></DepartmentDetail>} path='/departments/:id'></Route>
         <Route element= {<ProfilePage />} path='/profile'></Route>
         <Route element= {<ForgetPassword />} path='/forgot-password'></Route>
-        <Route element= {<></>} path='/Admin/Dashboard'></Route>
+        <Route element= {<AdminDashboard />} path='/Admin/Dashboard'></Route>
+
     </Routes>
     </BrowserRouter>
     

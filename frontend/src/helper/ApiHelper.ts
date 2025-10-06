@@ -41,8 +41,9 @@ class ApiHelper {
 
       return response.data;
     } catch (error: any) {
-      if(error instanceof AxiosError){
-        throw new Error(error.message);
+      if (error instanceof AxiosError) {
+        const message = error.response?.data?.message || error.message || "Request failed";
+        throw new Error(message);
       }
       throw error;
     }

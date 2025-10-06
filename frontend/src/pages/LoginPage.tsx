@@ -16,7 +16,7 @@ import {
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ACCESS_TOKEN, AVATAR_URL } from "../constraint/LocalStorage";
+import { ACCESS_TOKEN, AVATAR_URL, ROLE_ID } from "../constraint/LocalStorage";
 import { authenticated } from "../services/auth.service";
 import { ToastContainer } from "react-toastify";
 
@@ -70,7 +70,13 @@ export const LoginPage: React.FC = () => {
       localStorage.clear();
       localStorage.setItem(ACCESS_TOKEN, res.access_token);
       localStorage.setItem(AVATAR_URL, res.user.avatar_url)
-      navigate('/dashboard');
+      localStorage.setItem(ROLE_ID, res.user?.role_id);
+      const roleId = Number(res.user?.role_id);
+      if (roleId === 1) { 
+        navigate('/Admin/Dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setPasswordError("Invalid email or password");
     }
