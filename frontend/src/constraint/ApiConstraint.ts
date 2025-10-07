@@ -11,6 +11,7 @@ export const DEPARTMENT_LIST= '/api/departments'
 export const ACCOUNTS= '/api/accounts'
 export const ACCOUNT_ENABLE= (id: string)=> `/api/accounts/${id}/enable`
 export const ACCOUNT_DISABLE= (id: string)=> `/api/accounts/${id}/disable`
+export const ACCOUNT_BAN= (id: string)=> `/api/accounts/${id}/ban`
 export const ACCOUNT_RESET_PASSWORD= (id: string)=> `/api/accounts/${id}/reset-password`
 export const ACCOUNT_UPDATE= (id: string)=> `/api/accounts/${id}`
 export const ACCOUNT_DELETE= (id: string)=> `/api/accounts/${id}`

@@ -92,6 +92,11 @@ export class AccountsController {
     return this.accountsService.enable(id);
   }
 
+  @Post(':id/ban')
+  async banForDuration(@Param('id') id: string, @Body('hours') hours: number) {
+    return this.accountsService.banWithDuration(id, Number(hours));
+  }
+
   @Post(':id/reset-password')
   async resetPassword(@Param('id') id: string, @Body() body: ResetPasswordDto) {
     return this.accountsService.resetPassword(id, body.newPassword);
@@ -102,5 +107,8 @@ export class AccountsController {
     return this.accountsService.remove(id);
   }
 }
+
+
+
 
 

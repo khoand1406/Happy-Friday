@@ -2,11 +2,7 @@ import React, { useEffect, useState } from "react";
 import MainLayout from "../layout/MainLayout";
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
-import { Alert, Box, CircularProgress } from "@mui/material";
-import { DepartmentOrgChart } from "../components/DepartmentOrgChart";
-
-
-
+import { Alert, Box, CircularProgress, List, ListItem, ListItemText, Paper, Typography } from "@mui/material";
 
 export const MembersPage: React.FC = () => {
   const [company, setCompany] = useState<DepartmentResponse[] | null>(null);
@@ -27,7 +23,7 @@ export const MembersPage: React.FC = () => {
     fetchDepartments();
   }, []);
 
- if (loading) {
+  if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
         <CircularProgress />
@@ -53,7 +49,16 @@ export const MembersPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <DepartmentOrgChart departments={company} />
+      <Paper sx={{ p: 2, m: 2 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>Danh sách phòng ban</Typography>
+        <List>
+          {company.map((d)=> (
+            <ListItem key={d.id}>
+              <ListItemText primary={d.name} secondary={`Số thành viên: ${d.memberCount ?? 0}`} />
+            </ListItem>
+          ))}
+        </List>
+      </Paper>
     </MainLayout>
   );
 };

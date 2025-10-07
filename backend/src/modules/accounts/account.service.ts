@@ -23,14 +23,36 @@ export class AccountsService {
   async list(page = 1, perPage = 10) {
     const from = (page - 1) * perPage;
     const to = from + perPage - 1;
-
-    const { data, error } = await supabaseAdmin
-      .from('profiles_full')
-      .select('*')
+  
+    // 1) Core profiles từ bảng users (service role)
+    const { data: coreProfiles, error: coreErr } = await supabaseAdmin
+      .from('users')
+      .select('id,name,phone,role_id,department_id, avatar_url')
       .range(from, to);
-
-    if (error) throw new InternalServerErrorException(error.message);
-    return data;
+    if (coreErr) throw new InternalServerErrorException(coreErr.message);
+  
+    // 2) Email + trạng thái từ Auth users (service role)
+    const { data: authUsers, error: authErr } = await (supabaseAdmin as any)
+      .auth.admin.listUsers({ page: Math.max(1, page), perPage: Math.max(1, perPage) });
+    if (authErr) throw new InternalServerErrorException(authErr.message);
+  
+    const idToEmail = new Map<string, string>();
+    const idToDisabled = new Map<string, boolean>();
+    (authUsers?.users || []).forEach((u: any) => {
+      if (u?.id) {
+        idToEmail.set(u.id, u.email);
+        const bannedUntil = (u as any)?.banned_until || (u as any)?.ban_until || (u as any)?.banExpiresAt;
+        const isDisabled = bannedUntil ? new Date(bannedUntil).getTime() > Date.now() : false;
+        idToDisabled.set(u.id, !!isDisabled);
+      }
+    });
+  
+    // 3) Ghép dữ liệu
+    return (coreProfiles || []).map((p: any) => ({
+      ...p,
+      email: idToEmail.get(p.id) || null,
+      is_disabled: idToDisabled.get(p.id) ?? false,
+    }));
   }
 
   async create(payload: CreateAccountPayload) {
@@ -105,7 +127,7 @@ export class AccountsService {
   }
 
   async disable(userId: string) {
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    const { error } = await (supabaseAdmin as any).auth.admin.updateUserById(userId, {
       ban_duration: '876000h',
     } as any);
     if (error) throw new InternalServerErrorException(error.message);
@@ -113,11 +135,20 @@ export class AccountsService {
   }
 
   async enable(userId: string) {
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    const { error } = await (supabaseAdmin as any).auth.admin.updateUserById(userId, {
       ban_duration: 'none',
     } as any);
     if (error) throw new InternalServerErrorException(error.message);
     return { message: 'User enabled' };
+  }
+
+  async banWithDuration(userId: string, hours: number) {
+    const safeHours = Math.max(1, Math.floor(hours || 1));
+    const { error } = await (supabaseAdmin as any).auth.admin.updateUserById(userId, {
+      ban_duration: `${safeHours}h`,
+    } as any);
+    if (error) throw new InternalServerErrorException(error.message);
+    return { message: `User banned for ${safeHours} hours` };
   }
 
   async remove(userId: string) {

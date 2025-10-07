@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Paper, Select, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -11,7 +11,9 @@ import MainLayout from "../layout/MainLayout";
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
-import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem } from "../services/accounts.service";
+import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount } from "../services/accounts.service";
+import { getDepartments } from "../services/department.sertvice";
+import type { DepartmentResponse } from "../models/response/dep.response";
 
 type TabKey = 'accounts' | 'projects';
 
@@ -24,6 +26,12 @@ export const AdminDashboard: React.FC = () => {
   const [page] = useState(1);
   const [perpage] = useState(10);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [openBan, setOpenBan] = useState<null | AccountItem>(null);
+  const [openEnableConfirm, setOpenEnableConfirm] = useState<null | AccountItem>(null);
+  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterDepId, setFilterDepId] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
 
   const load = async () => {
     const data = await listAccounts(page, perpage);
@@ -37,6 +45,31 @@ export const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (tab === 'accounts') load();
   }, [tab]);
+
+  useEffect(()=>{
+    const loadDeps = async ()=>{
+      try{ setDepartments(await getDepartments()); } catch{}
+    };
+    loadDeps();
+  }, []);
+
+  const filteredAccounts = useMemo(()=>{
+    return accounts.filter((u:any)=>{
+      const depOk = filterDepId === '' ? true : Number(u.department_id) === Number(filterDepId);
+      const stOk = filterStatus === 'all' ? true : (
+        filterStatus === 'disabled' ? !!u.is_disabled : !u.is_disabled
+      );
+      return depOk && stOk;
+    });
+  }, [accounts, filterDepId, filterStatus]);
+
+  const chipLabel = useMemo(()=>{
+    if (filterDepId !== '' && filterStatus !== 'all') return 'Lọc theo phòng ban & trạng thái';
+    if (filterDepId !== '') return 'Lọc theo phòng ban';
+    if (filterStatus === 'disabled') return 'Lọc theo Disabled';
+    if (filterStatus === 'enabled') return 'Lọc theo Enabled';
+    return 'Tất cả';
+  }, [filterDepId, filterStatus]);
 
   return (
     <MainLayout showDrawer={false}>
@@ -68,22 +101,20 @@ export const AdminDashboard: React.FC = () => {
         </Stack>
 
         <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
-          <Button variant="outlined" size="small" startIcon={<TuneOutlinedIcon />} sx={{ borderRadius: 2 }}>Lọc</Button>
-          <Button variant="outlined" size="small" sx={{ borderRadius: 2 }}>Hôm nay</Button>
-          <Chip label="Tất cả" size="small" sx={{ borderRadius: 1 }} />
+          <Button variant="outlined" size="small" startIcon={<TuneOutlinedIcon />} sx={{ borderRadius: 2 }} onClick={()=>setFilterOpen(true)}>Lọc</Button>
+          <Chip label={chipLabel} size="small" sx={{ borderRadius: 1 }} onDelete={(filterDepId!=='' || filterStatus!=='all')?()=>{setFilterDepId(''); setFilterStatus('all');}:undefined} />
         </Stack>
 
           {tab === 'accounts' && (
-            <AccountsTable items={accounts} onReload={load} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} />
+            <AccountsTable items={filteredAccounts as any} departments={departments} onReload={load} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} onBan={(u)=>setOpenBan(u)} onEnableConfirm={(u)=>setOpenEnableConfirm(u)} />
           )}
-
-        {tab === 'projects' && (
-          <Paper sx={{ p: 3, borderRadius: 3 }}>Đang phát triển...</Paper>
-        )}
 
         <CreateDialog open={openCreate} onClose={()=>setOpenCreate(false)} onCreated={()=>{setOpenCreate(false); load();}} />
         <EditDialog item={openEdit} onClose={()=>setOpenEdit(null)} onUpdated={()=>{setOpenEdit(null); load();}} />
           <ResetDialog item={openReset} onClose={()=>setOpenReset(null)} onUpdated={()=>{setOpenReset(null);}} />
+          <BanDialog item={openBan} onClose={()=>setOpenBan(null)} onDone={()=>{setOpenBan(null); load();}} />
+          <EnableConfirmDialog item={openEnableConfirm} onClose={()=>setOpenEnableConfirm(null)} onDone={()=>{setOpenEnableConfirm(null); load();}} />
+          <FilterDialog open={filterOpen} onClose={()=>setFilterOpen(false)} departments={departments} filterDepId={filterDepId} setFilterDepId={setFilterDepId} filterStatus={filterStatus} setFilterStatus={setFilterStatus} />
           <ImagePreviewDialog url={previewImage} onClose={()=>setPreviewImage(null)} />
         </Box>
       </Box>
@@ -91,7 +122,12 @@ export const AdminDashboard: React.FC = () => {
   );
 };
 
-const AccountsTable: React.FC<{ items: AccountItem[]; onReload: ()=>void; onEdit: (u: AccountItem)=>void; onReset: (u: AccountItem)=>void; onPreview: (url: string|null)=>void; }> = ({ items, onReload, onEdit, onReset, onPreview }) => {
+const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentResponse[]; onReload: ()=>void; onEdit: (u: AccountItem)=>void; onReset: (u: AccountItem)=>void; onPreview: (url: string|null)=>void; onBan: (u: AccountItem)=>void; onEnableConfirm: (u: AccountItem)=>void; }> = ({ items, departments, onReload, onEdit, onReset, onPreview, onBan, onEnableConfirm }) => {
+  const depNameById = (id?: number|string|null) => {
+    const depId = typeof id === 'string' ? Number(id) : id;
+    const found = departments.find(d=> d.id === depId);
+    return found?.name || '-';
+  };
   return (
     <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 2 }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: '64px 2fr 1.4fr 1fr 1fr 200px', bgcolor: '#f8fafc', px: 2, py: 1.5, fontWeight: 700 }}>
@@ -112,12 +148,12 @@ const AccountsTable: React.FC<{ items: AccountItem[]; onReload: ()=>void; onEdit
             <Typography sx={{ fontWeight: 600 }}>{u.email}</Typography>
             <Typography>{(u as any).full_name || (u as any).fullname || (u as any).name || (u as any).display_name || '-'}</Typography>
             <Typography>{(u as any).phone || (u as any).phone_number || '-'}</Typography>
-            <Typography>{(u as any).department_name || (u as any).department || (u as any).department_id || '-'}</Typography>
+            <Typography>{(u as any).department_name || depNameById((u as any).department_id)}</Typography>
             <Box>
               <Tooltip title="Sửa"><IconButton onClick={()=>onEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })}><EditIcon /></IconButton></Tooltip>
               <Tooltip title="Đặt lại mật khẩu"><IconButton onClick={()=>onReset(u)}><KeyIcon /></IconButton></Tooltip>
-              <Tooltip title="Vô hiệu hóa"><IconButton onClick={async()=>{ await disableAccount(u.id); onReload(); }}><BlockIcon /></IconButton></Tooltip>
-              <Tooltip title="Kích hoạt"><IconButton onClick={async()=>{ await enableAccount(u.id); onReload(); }}><CheckCircleOutlineIcon /></IconButton></Tooltip>
+              <Tooltip title="Vô hiệu hóa"><IconButton onClick={()=>onBan(u)}><BlockIcon /></IconButton></Tooltip>
+              <Tooltip title="Kích hoạt"><IconButton onClick={()=>onEnableConfirm(u)}><CheckCircleOutlineIcon /></IconButton></Tooltip>
               <Tooltip title="Xóa"><IconButton onClick={async()=>{ await deleteAccount(u.id); onReload(); }}><DeleteOutlineIcon /></IconButton></Tooltip>
             </Box>
           </Box>
@@ -147,9 +183,17 @@ const CreateDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreated: ()=>
   const [full_name, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [role_id, setRole] = useState<number>(2);
-  const [department_id, setDepartment] = useState<number | ''>('');
+  const [department_id, setDepartment] = useState<string>('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
+
+  useEffect(()=>{
+    const loadDeps = async ()=>{
+      try{ setDepartments(await getDepartments()); } catch {}
+    };
+    if (open) loadDeps();
+  }, [open]);
 
   const submit = async () => {
     // simple validations
@@ -167,7 +211,7 @@ const CreateDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreated: ()=>
     if (!valid) return;
 
     try {
-      await createAccount({ email, password, full_name, phone, role_id, department_id: department_id as number | undefined });
+      await createAccount({ email, password, full_name, phone, role_id, department_id: department_id ? Number(department_id) : undefined });
       onCreated();
       setEmail(''); setPassword(''); setFullName(''); setPhone(''); setRole(2); setDepartment('');
     } catch (e: any) {
@@ -188,7 +232,12 @@ const CreateDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreated: ()=>
             <MenuItem value={1}>Admin</MenuItem>
             <MenuItem value={2}>User</MenuItem>
           </Select>
-          <TextField label="Department ID" value={department_id} onChange={e=>setDepartment(e.target.value ? Number(e.target.value) : '')} fullWidth />
+          <Select value={department_id} onChange={e=>setDepartment(String(e.target.value))} displayEmpty fullWidth>
+            <MenuItem value=""><em>Chọn phòng ban</em></MenuItem>
+            {departments.map(d=> (
+              <MenuItem key={d.id} value={String(d.id)}>{d.name}</MenuItem>
+            ))}
+          </Select>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -203,16 +252,27 @@ const EditDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onUpda
   const [full_name, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [role_id, setRole] = useState<number>(2);
-  const [department_id, setDepartment] = useState<number | ''>('');
+  const [department_id, setDepartment] = useState<string>('');
+  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
 
   useEffect(()=>{
     if (item) {
-      setFullName(item.full_name ?? '');
-      setPhone(item.phone ?? '');
-      setRole(item.role_id ?? 2);
-      setDepartment(item.department_id ?? '');
+      setFullName((item as any).full_name || (item as any).name || (item as any).display_name || '');
+      setPhone((item as any).phone ?? '');
+      setRole((item as any).role_id ?? 2);
+      setDepartment((item as any).department_id ? String((item as any).department_id) : '');
     }
   }, [item]);
+
+  useEffect(()=>{
+    const loadDeps = async ()=>{
+      try{
+        const res = await getDepartments();
+        setDepartments(res || []);
+      }catch{}
+    };
+    loadDeps();
+  }, []);
 
   const submit = async () => {
     if (!item) return;
@@ -221,7 +281,7 @@ const EditDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onUpda
       console.error('Missing user id on item:', item);
       return;
     }
-    await updateAccount(currId as string, { full_name, phone, role_id, department_id: department_id as number | undefined });
+    await updateAccount(currId as string, { full_name, phone, role_id, department_id: department_id ? Number(department_id) : undefined });
     onUpdated();
   };
 
@@ -236,7 +296,12 @@ const EditDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onUpda
             <MenuItem value={1}>Admin</MenuItem>
             <MenuItem value={2}>User</MenuItem>
           </Select>
-          <TextField label="Department ID" value={department_id} onChange={e=>setDepartment(e.target.value ? Number(e.target.value) : '')} fullWidth />
+          <Select value={department_id} onChange={e=>setDepartment(String(e.target.value))} displayEmpty fullWidth>
+            <MenuItem value=""><em>Chọn phòng ban</em></MenuItem>
+            {departments.map(d=> (
+              <MenuItem key={d.id} value={String(d.id)}>{d.name}</MenuItem>
+            ))}
+          </Select>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -263,6 +328,91 @@ const ResetDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onUpd
       <DialogActions>
         <Button onClick={onClose}>Hủy</Button>
         <Button variant="contained" onClick={submit}>Xác nhận</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+const BanDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onDone: ()=>void; }> = ({ item, onClose, onDone }) => {
+  const [hours, setHours] = useState<number>(24);
+  const [mode, setMode] = useState<'ban'|'disable'>('ban');
+
+  useEffect(()=>{
+    if (item) { setHours(24); setMode('ban'); }
+  }, [item]);
+
+  const submit = async () => {
+    if (!item) return;
+    if (mode === 'ban') {
+      await banAccount(item.id, Math.max(1, Math.floor(hours || 1)));
+    } else {
+      await disableAccount(item.id);
+    }
+    onDone();
+  };
+
+  return (
+    <Dialog open={!!item} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Vô hiệu hóa tài khoản</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <Select value={mode} onChange={e=>setMode(e.target.value as any)} fullWidth>
+            <MenuItem value={'ban'}>Cấm theo thời gian</MenuItem>
+            <MenuItem value={'disable'}>Vô hiệu hóa dài hạn</MenuItem>
+          </Select>
+          {mode === 'ban' && (
+            <TextField type="number" label="Số giờ cấm" value={hours} onChange={e=>setHours(Number(e.target.value))} inputProps={{ min: 1 }} fullWidth />
+          )}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Hủy</Button>
+        <Button variant="contained" onClick={submit}>Xác nhận</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+const EnableConfirmDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onDone: ()=>void; }> = ({ item, onClose, onDone }) => {
+  const submit = async () => {
+    if (!item) return;
+    await enableAccount(item.id);
+    onDone();
+  };
+  return (
+    <Dialog open={!!item} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Xác nhận kích hoạt</DialogTitle>
+      <DialogContent>
+        <Typography>Bạn có chắc muốn mở lại tài khoản này không?</Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Hủy</Button>
+        <Button variant="contained" color="success" onClick={submit}>Kích hoạt</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+const FilterDialog: React.FC<{ open: boolean; onClose: ()=>void; departments: DepartmentResponse[]; filterDepId: string; setFilterDepId: (v:string)=>void; filterStatus: 'all'|'enabled'|'disabled'; setFilterStatus: (v:'all'|'enabled'|'disabled')=>void; }> = ({ open, onClose, departments, filterDepId, setFilterDepId, filterStatus, setFilterStatus }) => {
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Bộ lọc</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <Select value={filterDepId} onChange={e=>setFilterDepId(String(e.target.value))} displayEmpty fullWidth>
+            <MenuItem value=""><em>Tất cả phòng ban</em></MenuItem>
+            {departments.map(d=> (<MenuItem key={d.id} value={String(d.id)}>{d.name}</MenuItem>))}
+          </Select>
+          <Select value={filterStatus} onChange={e=>setFilterStatus(e.target.value as any)} fullWidth>
+            <MenuItem value={'all'}>Tất cả trạng thái</MenuItem>
+            <MenuItem value={'enabled'}>Enabled</MenuItem>
+            <MenuItem value={'disabled'}>Disabled</MenuItem>
+          </Select>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Đóng</Button>
+        <Button variant="contained" onClick={onClose}>Áp dụng</Button>
       </DialogActions>
     </Dialog>
   );

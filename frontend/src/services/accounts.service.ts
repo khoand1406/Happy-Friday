@@ -1,6 +1,6 @@
 import ApiHelper from "../helper/ApiHelper";
 import axios from "axios";
-import { BaseURl, ACCOUNTS, ACCOUNT_DELETE, ACCOUNT_DISABLE, ACCOUNT_ENABLE, ACCOUNT_RESET_PASSWORD, ACCOUNT_UPDATE } from "../constraint/ApiConstraint";
+import { BaseURl, ACCOUNTS, ACCOUNT_DELETE, ACCOUNT_DISABLE, ACCOUNT_ENABLE, ACCOUNT_RESET_PASSWORD, ACCOUNT_UPDATE, ACCOUNT_BAN } from "../constraint/ApiConstraint";
 
 export interface AccountItem {
   id: string;
@@ -68,6 +68,10 @@ export const enableAccount = async (id: string): Promise<any> => {
 
 export const disableAccount = async (id: string): Promise<any> => {
   return api.postJson(`${ACCOUNT_DISABLE(id)}`, {});
+};
+
+export const banAccount = async (id: string, hours: number): Promise<any> => {
+  return api.postJson(`${ACCOUNT_BAN(id)}`, { hours });
 };
 
 export const resetPassword = async (id: string, newPassword: string): Promise<any> => {
