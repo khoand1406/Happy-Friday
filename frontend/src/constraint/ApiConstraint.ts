@@ -16,5 +16,11 @@ export const ACCOUNT_RESET_PASSWORD= (id: string)=> `/api/accounts/${id}/reset-p
 export const ACCOUNT_UPDATE= (id: string)=> `/api/accounts/${id}`
 export const ACCOUNT_DELETE= (id: string)=> `/api/accounts/${id}`
 
+// Projects
+export const PROJECTS= '/api/projects'
+export const PROJECT_DETAIL= (id: number | string)=> `/api/projects/${id}`
+export const PROJECT_STATUS= (id: number | string)=> `/api/projects/${id}/status`
+export const PROJECT_UPDATES= (id: number | string)=> `/api/projects/${id}/updates`
+
 
 

@@ -14,6 +14,7 @@ import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material"
 import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount } from "../services/accounts.service";
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
+import { getProjects, type ProjectItem } from "../services/project.service";
 
 type TabKey = 'accounts' | 'projects';
 
@@ -32,6 +33,9 @@ export const AdminDashboard: React.FC = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterDepId, setFilterDepId] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [projectSearch, setProjectSearch] = useState<string>('');
+  const [projectStatus, setProjectStatus] = useState<string>('');
 
   const load = async () => {
     const data = await listAccounts(page, perpage);
@@ -42,9 +46,23 @@ export const AdminDashboard: React.FC = () => {
     setAccounts(normalized);
   };
 
+  const loadProjects = async () => {
+    try {
+      const data = await getProjects({ page: 1, perpage: 20, search: projectSearch, status: projectStatus });
+      setProjects(data || []);
+    } catch (e) {
+      console.error('Failed to load projects:', e);
+    }
+  };
+
   useEffect(() => {
     if (tab === 'accounts') load();
+    if (tab === 'projects') loadProjects();
   }, [tab]);
+
+  useEffect(() => {
+    if (tab === 'projects') loadProjects();
+  }, [projectSearch, projectStatus]);
 
   useEffect(()=>{
     const loadDeps = async ()=>{
@@ -100,13 +118,44 @@ export const AdminDashboard: React.FC = () => {
           )}
         </Stack>
 
-        <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
-          <Button variant="outlined" size="small" startIcon={<TuneOutlinedIcon />} sx={{ borderRadius: 2 }} onClick={()=>setFilterOpen(true)}>Lọc</Button>
-          <Chip label={chipLabel} size="small" sx={{ borderRadius: 1 }} onDelete={(filterDepId!=='' || filterStatus!=='all')?()=>{setFilterDepId(''); setFilterStatus('all');}:undefined} />
-        </Stack>
+        {tab === 'accounts' && (
+          <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
+            <Button variant="outlined" size="small" startIcon={<TuneOutlinedIcon />} sx={{ borderRadius: 2 }} onClick={()=>setFilterOpen(true)}>Lọc</Button>
+            <Chip label={chipLabel} size="small" sx={{ borderRadius: 1 }} onDelete={(filterDepId!=='' || filterStatus!=='all')?()=>{setFilterDepId(''); setFilterStatus('all');}:undefined} />
+          </Stack>
+        )}
+
+        {tab === 'projects' && (
+          <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
+            <TextField 
+              size="small" 
+              placeholder="Tìm kiếm dự án..." 
+              value={projectSearch} 
+              onChange={(e) => setProjectSearch(e.target.value)}
+              sx={{ minWidth: 200 }}
+            />
+            <Select 
+              size="small" 
+              value={projectStatus} 
+              onChange={(e) => setProjectStatus(e.target.value)}
+              displayEmpty
+              sx={{ minWidth: 120 }}
+            >
+              <MenuItem value="">Tất cả</MenuItem>
+              <MenuItem value="IN COMMING">IN COMMING</MenuItem>
+              <MenuItem value="PROGRESSING">PROGRESSING</MenuItem>
+              <MenuItem value="COMPLETED">COMPLETED</MenuItem>
+            </Select>
+            <Button variant="contained" size="small" onClick={loadProjects}>Tìm kiếm</Button>
+          </Stack>
+        )}
 
           {tab === 'accounts' && (
             <AccountsTable items={filteredAccounts as any} departments={departments} onReload={load} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} onBan={(u)=>setOpenBan(u)} onEnableConfirm={(u)=>setOpenEnableConfirm(u)} />
+          )}
+
+          {tab === 'projects' && (
+            <ProjectsTable items={projects} onReload={loadProjects} />
           )}
 
         <CreateDialog open={openCreate} onClose={()=>setOpenCreate(false)} onCreated={()=>{setOpenCreate(false); load();}} />
@@ -415,6 +464,54 @@ const FilterDialog: React.FC<{ open: boolean; onClose: ()=>void; departments: De
         <Button variant="contained" onClick={onClose}>Áp dụng</Button>
       </DialogActions>
     </Dialog>
+  );
+};
+
+const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; }> = ({ items }) => {
+  return (
+    <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 200px', bgcolor: '#f8fafc', px: 2, py: 1.5, fontWeight: 700 }}>
+        <Typography>Tên dự án</Typography>
+        <Typography>Mô tả</Typography>
+        <Typography>Trạng thái</Typography>
+        <Typography>Thời gian</Typography>
+        <Typography>Thao tác</Typography>
+      </Box>
+      <Divider />
+      <Stack>
+        {items.map((p)=> (
+          <Box key={p.id} sx={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 200px', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid #eef0f3' }}>
+            <Typography sx={{ fontWeight: 600 }}>{p.name}</Typography>
+            <Typography>{p.description}</Typography>
+            <Chip 
+              label={p.status} 
+              color={p.status === 'COMPLETED' ? 'success' : p.status === 'PROGRESSING' ? 'warning' : 'default'} 
+              size="small"
+              sx={{ 
+                maxWidth: '135px',
+                height: 32,
+                '& .MuiChip-label': {
+                  px: 1.5,
+                  fontSize: '0.8rem'
+                }
+              }}
+            />
+            <Typography>
+              {p.start_date && p.end_date ? `${p.start_date} - ${p.end_date}` : '-'}
+            </Typography>
+            <Box>
+              <Tooltip title="Xem chi tiết"><IconButton onClick={() => window.location.href = `/projects/${p.id}`}><EditIcon /></IconButton></Tooltip>
+              <Tooltip title="Xóa"><IconButton><DeleteOutlineIcon /></IconButton></Tooltip>
+            </Box>
+          </Box>
+        ))}
+        {items.length === 0 && (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="text.secondary">Không có dự án nào</Typography>
+          </Box>
+        )}
+      </Stack>
+    </Paper>
   );
 };
 

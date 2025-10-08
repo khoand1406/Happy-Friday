@@ -8,6 +8,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { ForgetPassword } from './pages/ForgetPassword'
 import { AdminDashboard } from './pages/AdminDashboard'
 import DualCalendarLayout from './layout/Calender'
+import ProjectList from './pages/ProjectList'
 
 const App: React.FC = () => {
   return (
@@ -22,6 +23,7 @@ const App: React.FC = () => {
         <Route element= {<DualCalendarLayout/>} path='/calendar'></Route>
         <Route element= {<ForgetPassword />} path='/forgot-password'></Route>
         <Route element= {<AdminDashboard />} path='/Admin/Dashboard'></Route>
+        <Route element= {<ProjectList />} path='/projects'></Route>
 
     </Routes>
     </BrowserRouter>
