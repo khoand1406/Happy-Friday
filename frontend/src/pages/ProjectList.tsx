@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Chip, Divider, Pagination, Paper, Stack, TextField, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { Box, Button, Chip, Divider, Pagination, Paper, Stack, TextField, Typography, IconButton } from "@mui/material";
+import { Visibility } from "@mui/icons-material";
 import { getProjects, type ProjectItem } from "../services/project.service";
 import MainLayout from "../layout/MainLayout";
 
 const PER_PAGE = 8;
 
 export default function ProjectList() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1);
@@ -54,12 +57,21 @@ export default function ProjectList() {
           ) : (
             <Stack divider={<Divider />}>
               {projects.map(p => (
-                <Stack key={p.id} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" py={1}>
-                  <Box>
+                <Stack key={p.id} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" py={1}>
+                  <Box flex={1}>
                     <Typography fontWeight={600}>{p.name}</Typography>
                     <Typography variant="body2" color="text.secondary">{p.description}</Typography>
                   </Box>
-                  <Chip label={p.status} color={p.status==='COMPLETED'?'success': p.status==='PROGRESSING'?'warning':'default'} />
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip label={p.status} color={p.status==='COMPLETED'?'success': p.status==='PROGRESSING'?'warning':'default'} />
+                    <IconButton 
+                      color="primary" 
+                      onClick={() => navigate(`/projects/${p.id}`)}
+                      title="Xem chi tiết"
+                    >
+                      <Visibility />
+                    </IconButton>
+                  </Stack>
                 </Stack>
               ))}
               {projects.length === 0 && <Typography color="text.secondary">No projects</Typography>}

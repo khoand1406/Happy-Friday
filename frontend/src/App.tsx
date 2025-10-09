@@ -9,6 +9,7 @@ import { ForgetPassword } from './pages/ForgetPassword'
 import { AdminDashboard } from './pages/AdminDashboard'
 import DualCalendarLayout from './layout/Calender'
 import ProjectList from './pages/ProjectList'
+import ProjectDetail from './pages/ProjectDetail'
 
 const App: React.FC = () => {
   return (
@@ -24,6 +25,7 @@ const App: React.FC = () => {
         <Route element= {<ForgetPassword />} path='/forgot-password'></Route>
         <Route element= {<AdminDashboard />} path='/Admin/Dashboard'></Route>
         <Route element= {<ProjectList />} path='/projects'></Route>
+        <Route element= {<ProjectDetail />} path='/projects/:id'></Route>
 
     </Routes>
     </BrowserRouter>

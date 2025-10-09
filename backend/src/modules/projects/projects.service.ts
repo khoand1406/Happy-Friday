@@ -8,6 +8,7 @@ interface ListFilter {
 
 @Injectable()
 export class ProjectsService {
+  // get list projects
   async list(page = 1, perPage = 10, filter: ListFilter = {}) {
     const from = (page - 1) * perPage;
     const to = from + perPage - 1;
@@ -21,6 +22,7 @@ export class ProjectsService {
     return data;
   }
 
+  // get project detail
   async detail(id: string) {
     const { data: project, error } = await supabaseAdmin
       .from('projects')
@@ -31,10 +33,23 @@ export class ProjectsService {
     if (!project) throw new NotFoundException('Project not found');
 
     const [membersRes, updatesRes] = await Promise.all([
-      // Lấy danh sách thành viên + role theo view profile_with_projects
+      // Lấy danh sách thành viên + role từ project_members join với users và department
       supabaseAdmin
-        .from('profile_with_projects')
-        .select('id,name,phone,avatar_url,email,department_name,project_role,project_id')
+        .from('project_members')
+        .select(`
+          project_role,
+          project_id,
+          users!inner(
+            id,
+            name,
+            phone,
+            avatar_url,
+            department_id,
+            department!inner(
+              name
+            )
+          )
+        `)
         .eq('project_id', id),
       supabaseAdmin
         .from('project_updates')
@@ -46,9 +61,22 @@ export class ProjectsService {
     if (membersRes.error) throw new InternalServerErrorException(membersRes.error.message);
     if (updatesRes.error) throw new InternalServerErrorException(updatesRes.error.message);
 
-    return { project, members: membersRes.data, updates: updatesRes.data };
+    // Format members data để match với frontend
+    const formattedMembers = membersRes.data?.map((member: any) => ({
+      id: member.users.id,
+      name: member.users.name,
+      phone: member.users.phone,
+      avatar_url: member.users.avatar_url,
+      email: null, // Không có email từ users table, cần lấy từ auth.users
+      department_name: member.users.department.name,
+      project_role: member.project_role,
+      project_id: member.project_id
+    })) || [];
+
+    return { project, members: formattedMembers, updates: updatesRes.data };
   }
 
+  // create projects 
   async create(payload: { name: string; description: string; status: string; start_date?: string; end_date?: string }) {
     const { data, error } = await supabaseAdmin
       .from('projects')
@@ -65,6 +93,7 @@ export class ProjectsService {
     return data;
   }
 
+  // update projects 
   async update(id: string, payload: { name?: string; description?: string; status?: string; start_date?: string; end_date?: string }) {
     const { data, error } = await supabaseAdmin
       .from('projects')
