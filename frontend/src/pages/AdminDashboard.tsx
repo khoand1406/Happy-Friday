@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Paper, Select, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, IconButton, MenuItem, Paper, Select, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -14,7 +14,7 @@ import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material"
 import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount } from "../services/accounts.service";
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
-import { getProjects, type ProjectItem } from "../services/project.service";
+import { getProjects, deleteProject, type ProjectItem } from "../services/project.service";
 
 type TabKey = 'accounts' | 'projects';
 
@@ -36,6 +36,7 @@ export const AdminDashboard: React.FC = () => {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [projectSearch, setProjectSearch] = useState<string>('');
   const [projectStatus, setProjectStatus] = useState<string>('');
+  const [deleteProjectDialog, setDeleteProjectDialog] = useState<ProjectItem | null>(null);
 
   const load = async () => {
     const data = await listAccounts(page, perpage);
@@ -52,6 +53,18 @@ export const AdminDashboard: React.FC = () => {
       setProjects(data || []);
     } catch (e) {
       console.error('Failed to load projects:', e);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!deleteProjectDialog) return;
+    
+    try {
+      await deleteProject(deleteProjectDialog.id);
+      setDeleteProjectDialog(null);
+      await loadProjects(); // Reload projects list
+    } catch (error) {
+      console.error('Error deleting project:', error);
     }
   };
 
@@ -155,7 +168,7 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {tab === 'projects' && (
-            <ProjectsTable items={projects} onReload={loadProjects} />
+            <ProjectsTable items={projects} onReload={loadProjects} onDelete={setDeleteProjectDialog} />
           )}
 
         <CreateDialog open={openCreate} onClose={()=>setOpenCreate(false)} onCreated={()=>{setOpenCreate(false); load();}} />
@@ -165,6 +178,7 @@ export const AdminDashboard: React.FC = () => {
           <EnableConfirmDialog item={openEnableConfirm} onClose={()=>setOpenEnableConfirm(null)} onDone={()=>{setOpenEnableConfirm(null); load();}} />
           <FilterDialog open={filterOpen} onClose={()=>setFilterOpen(false)} departments={departments} filterDepId={filterDepId} setFilterDepId={setFilterDepId} filterStatus={filterStatus} setFilterStatus={setFilterStatus} />
           <ImagePreviewDialog url={previewImage} onClose={()=>setPreviewImage(null)} />
+          <DeleteProjectDialog item={deleteProjectDialog} onClose={()=>setDeleteProjectDialog(null)} onDelete={handleDeleteProject} />
         </Box>
       </Box>
     </MainLayout>
@@ -467,7 +481,7 @@ const FilterDialog: React.FC<{ open: boolean; onClose: ()=>void; departments: De
   );
 };
 
-const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; }> = ({ items }) => {
+const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; onDelete: (item: ProjectItem)=>void; }> = ({ items, onDelete }) => {
   return (
     <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 2 }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 200px', bgcolor: '#f8fafc', px: 2, py: 1.5, fontWeight: 700 }}>
@@ -500,8 +514,8 @@ const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; }> = (
               {p.start_date && p.end_date ? `${p.start_date} - ${p.end_date}` : '-'}
             </Typography>
             <Box>
-              <Tooltip title="Xem chi tiết"><IconButton onClick={() => window.location.href = `/projects/${p.id}`}><EditIcon /></IconButton></Tooltip>
-              <Tooltip title="Xóa"><IconButton><DeleteOutlineIcon /></IconButton></Tooltip>
+              <Tooltip title="Xem chi tiết"><IconButton onClick={() => window.location.href = `/admin/projects/${p.id}`}><EditIcon /></IconButton></Tooltip>
+              <Tooltip title="Xóa"><IconButton onClick={() => onDelete(p)}><DeleteOutlineIcon /></IconButton></Tooltip>
             </Box>
           </Box>
         ))}
@@ -512,6 +526,23 @@ const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; }> = (
         )}
       </Stack>
     </Paper>
+  );
+};
+
+const DeleteProjectDialog: React.FC<{ item: ProjectItem | null; onClose: ()=>void; onDelete: ()=>void; }> = ({ item, onClose, onDelete }) => {
+  return (
+    <Dialog open={!!item} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Xóa dự án</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Bạn có chắc chắn muốn xóa dự án "{item?.name}"? Hành động này không thể hoàn tác.
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Hủy</Button>
+        <Button variant="contained" color="error" onClick={onDelete}>Xóa</Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

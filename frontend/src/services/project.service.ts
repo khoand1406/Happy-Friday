@@ -39,7 +39,7 @@ export const createProject = async (payload: { name: string; description: string
 
 export const updateProject = async (id: number | string, payload: Partial<{ name: string; description: string; status: string; start_date: string; end_date: string; }>) => {
   const api = new ApiHelper(BaseURl);
-  return api.patchformdata ? api.patchformdata(PROJECT_DETAIL(id), payload as any) : api.post(PROJECT_DETAIL(id), payload);
+  return api.patch(PROJECT_DETAIL(id), payload);
 };
 
 export const updateProjectStatus = async (id: number | string, status: string) => {
@@ -55,6 +55,11 @@ export const getProjectUpdates = async (id: number | string) => {
 export const postProjectUpdate = async (id: number | string, payload: { title: string; content: string }) => {
   const api = new ApiHelper(BaseURl);
   return api.post(PROJECT_UPDATES(id), payload);
+};
+
+export const deleteProject = async (id: number | string) => {
+  const api = new ApiHelper(BaseURl);
+  return api.delete(PROJECT_DETAIL(id));
 };
 
 

@@ -10,6 +10,7 @@ import { AdminDashboard } from './pages/AdminDashboard'
 import DualCalendarLayout from './layout/Calender'
 import ProjectList from './pages/ProjectList'
 import ProjectDetail from './pages/ProjectDetail'
+import AdminProjectDetail from './pages/AdminProjectDetail'
 
 const App: React.FC = () => {
   return (
@@ -24,6 +25,7 @@ const App: React.FC = () => {
         <Route element= {<DualCalendarLayout/>} path='/calendar'></Route>
         <Route element= {<ForgetPassword />} path='/forgot-password'></Route>
         <Route element= {<AdminDashboard />} path='/Admin/Dashboard'></Route>
+        <Route element= {<AdminProjectDetail />} path='/admin/projects/:id'></Route>
         <Route element= {<ProjectList />} path='/projects'></Route>
         <Route element= {<ProjectDetail />} path='/projects/:id'></Route>
 

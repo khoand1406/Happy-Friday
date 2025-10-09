@@ -95,26 +95,46 @@ export class ProjectsService {
 
   // update projects 
   async update(id: string, payload: { name?: string; description?: string; status?: string; start_date?: string; end_date?: string }) {
+    console.log('[ProjectsService] Update called with:', { id, payload });
+    
+    // Filter out undefined values to avoid Supabase errors
+    const updateData: any = {};
+    if (payload.name !== undefined) updateData.name = payload.name;
+    if (payload.description !== undefined) updateData.description = payload.description;
+    if (payload.status !== undefined) updateData.status = payload.status;
+    if (payload.start_date !== undefined) updateData.start_date = payload.start_date ? new Date(payload.start_date) : null;
+    if (payload.end_date !== undefined) updateData.end_date = payload.end_date ? new Date(payload.end_date) : null;
+
+    console.log('[ProjectsService] Update data:', updateData);
+
     const { data, error } = await supabaseAdmin
       .from('projects')
-      .update({
-        name: payload.name,
-        description: payload.description,
-        status: payload.status,
-        start_date: payload.start_date ? new Date(payload.start_date) : undefined,
-        end_date: payload.end_date ? new Date(payload.end_date) : undefined,
-      })
+      .update(updateData)
       .eq('id', id)
       .select('*')
       .single();
-    if (error) throw new InternalServerErrorException(error.message);
+    
+    console.log('[ProjectsService] Supabase response:', { data, error });
+    
+    if (error) {
+      console.error('[ProjectsService] Supabase error:', error);
+      throw new InternalServerErrorException(error.message);
+    }
     if (!data) throw new NotFoundException('Project not found');
     return data;
   }
 
   async remove(id: string) {
+    console.log('[ProjectsService] Delete called with id:', id);
+    
     const { error } = await supabaseAdmin.from('projects').delete().eq('id', id);
-    if (error) throw new InternalServerErrorException(error.message);
+    
+    console.log('[ProjectsService] Delete response:', { error });
+    
+    if (error) {
+      console.error('[ProjectsService] Delete error:', error);
+      throw new InternalServerErrorException(error.message);
+    }
     return { message: 'Project deleted' };
   }
 
