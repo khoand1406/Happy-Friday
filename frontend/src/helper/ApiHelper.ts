@@ -80,10 +80,41 @@ class ApiHelper {
     }
   }
 
+  async patchJson(endpoint: string, data: any){
+    try{
+      const token= localStorage.getItem("accessToken");
+      const response= await axios.patch(`${this.baseURL}${endpoint}`, data, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+      });
+      return response.data;
+    }catch(error){
+      this.handleError(error);
+    }
+  }
+
   async post(url: string, data: any): Promise<any> {
     try {
       const token = localStorage.getItem("accessToken");
       const response = await axios.post(`${this.baseURL}${url}`, data, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return response.data;
+    } catch (error: any) {
+      this.handleError(error);
+    }
+  }
+
+  async delete(endpoint: string): Promise<any> {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axios.delete(`${this.baseURL}${endpoint}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -110,6 +141,7 @@ class ApiHelper {
       this.handleError(error);
     }
   }
+  
 }
 
 export default ApiHelper;
