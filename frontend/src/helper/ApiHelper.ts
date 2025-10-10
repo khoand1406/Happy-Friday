@@ -80,6 +80,21 @@ class ApiHelper {
     }
   }
 
+  async patchJson(endpoint: string, data: any){
+    try{
+      const token= localStorage.getItem("accessToken");
+      const response= await axios.patch(`${this.baseURL}${endpoint}`, data, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+      });
+      return response.data;
+    }catch(error){
+      this.handleError(error);
+    }
+  }
+
   async post(url: string, data: any): Promise<any> {
     try {
       const token = localStorage.getItem("accessToken");
@@ -95,6 +110,7 @@ class ApiHelper {
       this.handleError(error);
     }
   }
+
 
   async patch(url: string, data: any): Promise<any> {
     try {
@@ -127,6 +143,7 @@ class ApiHelper {
     }
   }
 
+
   async delete(url: string): Promise<any> {
     try {
       const token = localStorage.getItem("accessToken");
@@ -142,6 +159,7 @@ class ApiHelper {
       this.handleError(error);
     }
   }
+
 }
 
 export default ApiHelper;

@@ -16,6 +16,19 @@ export const ACCOUNT_RESET_PASSWORD= (id: string)=> `/api/accounts/${id}/reset-p
 export const ACCOUNT_UPDATE= (id: string)=> `/api/accounts/${id}`
 export const ACCOUNT_DELETE= (id: string)=> `/api/accounts/${id}`
 
+// Events
+export const EVENTS= '/api/events'
+export const EVENT_DETAIL= (id: number)=> `/api/events/${id}`
+export const PAST_EVENTS= '/api/events/past'
+export const INCOMING_EVENTS= `/api/events/incoming`
+export const CREATE_EVENT= '/api/events/create'
+export const UPDATE_EVENT= (id:number)=> `/api/events/update/${id}`
+export const DELETE_EVENT= (id:number)=> `/api/events/delete/${id}`
+export const ACCEPT_EVENT= (id:number)=> `/api/events/accept/${id}`
+export const REJECT_EVENT= (id:number)=> `/api/events/reject/${id}`
+
+// Invites
+export const INVITES= '/api/invites'
 // Projects
 export const PROJECTS= '/api/projects'
 export const PROJECT_DETAIL= (id: number | string)=> `/api/projects/${id}`
