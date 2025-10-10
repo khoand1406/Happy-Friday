@@ -5,11 +5,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { supabase, supabaseAdmin } from 'src/config/database.config';
-import { UpdateUserProfileDTO } from './dto/profile.dto';
 import { ChangePasswordDto } from './dto/change_password.dto';
+import { UpdateUserProfileDTO } from './dto/profile.dto';
 
 @Injectable()
 export class UserService {
+  async getUsersList(){
+    const {data, error}= await supabaseAdmin.from('users_with_dep').select('user_id, name, department_name, avatar_url');
+    if(error){
+      throw new InternalServerErrorException(error.message)
+    }
+    return data;
+
+  }
+
+
   async getProfilesFull(page = 1, perPage = 10) {
     const from = (page - 1) * perPage;
     const to = from + perPage - 1;

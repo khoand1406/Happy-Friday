@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { DepartmentResponse } from "../models/response/dep.response";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   departments: DepartmentResponse[];
@@ -13,6 +14,11 @@ export const DepartmentOrgChart: React.FC<Props> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ width: 900, height: 600 });
+  const navigator = useNavigate();
+
+  const handleDepartmentClick = (depid: number): void => {
+    navigator(`/departments/${depid}`);
+  };
 
   useEffect(() => {
     const update = () => {
@@ -34,7 +40,6 @@ export const DepartmentOrgChart: React.FC<Props> = ({
     const radius = Math.min(size.width, size.height) * 0.35;
     const n = departments.length;
 
-    // nodes + lines
     const nodes = [];
     const links: Array<{
       source: string;
@@ -45,11 +50,10 @@ export const DepartmentOrgChart: React.FC<Props> = ({
         curveness: number;
         type: string;
         symbol: string[];
-        
       };
     }> = [];
 
-    // Center node
+    // Center node with gradient
     nodes.push({
       name: centerName,
       x: cx,
@@ -57,10 +61,22 @@ export const DepartmentOrgChart: React.FC<Props> = ({
       symbolSize: [180, 100],
       symbol: "rect",
       itemStyle: {
-        color: "#1E88E5",
+        color: {
+          type: "linear",
+          x: 0,
+          y: 0,
+          x2: 1,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: "#0a612d" },
+            { offset: 1, color: "#1b8f4d" },
+          ],
+        },
         borderRadius: 15,
-        borderColor: "#1565C0",
+        borderColor: "#071525",
         borderWidth: 2,
+        shadowBlur: 12,
+        shadowColor: "rgba(0,0,0,0.3)",
       },
       label: {
         show: true,
@@ -71,52 +87,61 @@ export const DepartmentOrgChart: React.FC<Props> = ({
       },
     });
 
-    // Department cards around
+    // Department nodes
     departments.forEach((dep, i) => {
       const angle = (2 * Math.PI * i) / n - Math.PI / 2;
       const x = cx + radius * Math.cos(angle);
       const y = cy + radius * Math.sin(angle);
 
+      const memberCount = dep.memberCount ?? 0;
+      const width = 180 + Math.min(memberCount, 50);
+      const height = 100 + Math.min(memberCount, 30);
+
       nodes.push({
         name: dep.name,
         x,
         y,
-        symbolSize: [200, 120],
+        symbolSize: [width, height],
         symbol: "rect",
         itemStyle: {
-          color: "#E3F2FD",
+          color: "#d4e157",
           borderRadius: 15,
-          borderColor: "#64B5F6",
+          borderColor: "#aed581",
           borderWidth: 2,
           shadowBlur: 8,
           shadowColor: "rgba(0,0,0,0.15)",
         },
         label: {
           show: true,
-          formatter: `${dep.name}\n👥 ${dep.memberCount ?? 0} Members\n📝 ${
-            dep.description ?? "No description"
-          }`,
-          color: "#0D47A1",
-          fontSize: 12,
-          lineHeight: 18,
-          padding: [6, 8],
+          formatter: `${dep.name}\n👥 ${memberCount} Members`,
+          color: "#1b5e20",
+          fontSize: 13,
+          fontWeight: "medium",
+          lineHeight: 20,
+          padding: [8, 10],
         },
+        
+        description: dep.description ?? "No description",
+        memberCount,
+        id: dep.id,
       });
 
-       links.push({
-    source: centerName,
-    target: dep.name,
-    lineStyle: {
-      color: "#6B7280", 
-      width: 4.5,
-      type: "solid",   
-      curveness: 0.5,  
-      symbol: ["none", "arrow"],
-    }
-  });
+      links.push({
+        source: centerName,
+        target: dep.name,
+        lineStyle: {
+          color: "#7cb342",
+          width: 4.5,
+          type: "solid",
+          curveness: 0.5,
+          symbol: ["none", "arrow"],
+        },
+      });
     });
 
     return {
+      animationDuration: 800,
+      animationEasing: "cubicOut",
       tooltip: {
         trigger: "item",
         formatter: (params: any) => {
@@ -125,8 +150,9 @@ export const DepartmentOrgChart: React.FC<Props> = ({
           return `
             <div style="min-width:180px">
               <strong>${d.name}</strong><br/>
-              👥 ${d.memberCount ?? 0} Members<br/>
-              📝 ${d.description ?? "No description"}
+              👥 ${d.memberCount} Members<br/>
+              📈 KPI: ${d.kpi}<br/>
+              📝 ${d.description}
             </div>`;
         },
       },
@@ -143,7 +169,18 @@ export const DepartmentOrgChart: React.FC<Props> = ({
           },
           emphasis: {
             focus: "adjacency",
-            lineStyle: { width: 3 },
+            label: {
+              fontSize: 14,
+              fontWeight: "bold",
+              color: "#2e7d32",
+            },
+            itemStyle: {
+              borderColor: "#2e7d32",
+              borderWidth: 3,
+            },
+            lineStyle: {
+              width: 5,
+            },
           },
         },
       ],
@@ -161,7 +198,16 @@ export const DepartmentOrgChart: React.FC<Props> = ({
         padding: "16px",
       }}
     >
-      <ReactECharts option={option} style={{ height: "100%", width: "100%" }} />
+      <ReactECharts
+        option={option}
+        style={{ height: "100%", width: "100%" }}
+        onEvents={{
+          click: (params: any) => {
+            const clickedDep = departments.find((d) => d.name === params.name);
+            if (clickedDep) handleDepartmentClick(clickedDep.id);
+          },
+        }}
+      />
     </div>
   );
 };

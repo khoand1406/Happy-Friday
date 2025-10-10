@@ -27,13 +27,8 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Get('list')
   async getListUser(
-    @Query('page') page = '1',
-    @Query('perpage') perpage = '10',
   ) {
-    const result = await this.userServices.getProfilesFull(
-      Number(page),
-      Number(perpage),
-    );
+    const result = await this.userServices.getUsersList();
     return result;
   }
   @UseGuards(JwtAuthGuard)

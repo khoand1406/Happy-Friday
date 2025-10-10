@@ -26,3 +26,11 @@ export interface UserResponse{
     department_name: string
     avatar_url: string;
 }
+
+export interface UserBasicRespone{
+    user_id: string;
+    name: string;
+    department_name:string;
+    avatar_url:string;
+
+}
