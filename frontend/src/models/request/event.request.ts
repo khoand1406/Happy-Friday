@@ -3,7 +3,7 @@ export interface CreateEventRequest{
     content: string;
     startDate: Date;
     endDate: Date;
-    creatorId: string;
+    
     invitees: string[]; // array of user ids
 }
 

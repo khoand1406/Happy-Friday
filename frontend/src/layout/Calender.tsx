@@ -15,35 +15,84 @@ import {
   DialogActions,
   TextField,
   CircularProgress,
+  Autocomplete,
+  Avatar,
 } from "@mui/material";
 import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MainLayout from "./MainLayout";
-import { getEvents, getEventDetail } from "../services/events.service";
+import {
+  getEvents,
+  getEventDetail,
+  createEvent,
+} from "../services/events.service";
 import type {
   EventDetailResponse,
   EventResponse,
 } from "../models/response/event.response";
+import type { UserBasicRespone } from "../models/response/user.response";
+import { getMembers } from "../services/user.service";
+import type { CreateEventRequest } from "../models/request/event.request";
+import { toast, ToastContainer } from "react-toastify";
+import { AxiosError } from "axios";
 
 export default function CalendarLayout() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [openModal, setOpenModal] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: "", start: "", end: "" });
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    content: "",
+    start: "",
+    end: "",
+  });
   const [eventDetail, setEventDetail] = useState<EventDetailResponse | null>(
     null
   );
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [users, setUsers] = useState<UserBasicRespone[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserBasicRespone[]>([]);
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (newEvent.title && newEvent.start && newEvent.end) {
-      // Optional: send to backend if needed
-      setOpenModal(false);
-      setNewEvent({ title: "", start: "", end: "" });
+      const payload: CreateEventRequest = {
+        title: newEvent.title,
+        content: newEvent.content,
+        startDate: new Date(newEvent.start),
+        endDate: new Date(newEvent.end),
+        invitees: selectedUser.map((user) => user.user_id),
+      };
+      try {
+        const response = await createEvent(payload);
+        if (response) {
+          toast.success("Create event successfully!!");
+        }
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          toast.error("An error occur! Try again");
+        }
+      } finally {
+        setOpenModal(false);
+        setNewEvent({ title: "", content: "", start: "", end: "" });
+        setSelectedUser([]);
+      }
     }
   };
 
+  useEffect(() => {
+    if (openModal) {
+      const fetchUsers = async () => {
+        try {
+          const data = await getMembers();
+          setUsers(data);
+        } catch (err) {
+          console.error("Failed to fetch users:", err);
+        }
+      };
+      fetchUsers();
+    }
+  }, [openModal]);
   return (
     <MainLayout>
       <Grid
@@ -127,8 +176,8 @@ export default function CalendarLayout() {
                   start: item.startDate,
                   end: item.endDate,
                   backgroundColor: "rgba(255, 235, 59, 0.3)",
-  borderColor: "rgba(255, 213, 90, 0.6)",
-  textColor: "#333",
+                  borderColor: "rgba(255, 213, 90, 0.6)",
+                  textColor: "#333",
                 }));
                 successCallback(mapped);
               } catch (error: any) {
@@ -167,6 +216,15 @@ export default function CalendarLayout() {
                 setNewEvent({ ...newEvent, title: e.target.value })
               }
             />
+
+            <TextField
+              label="Content"
+              value={newEvent.content}
+              onChange={(e) =>
+                setNewEvent({ ...newEvent, content: e.target.value })
+              }
+            />
+
             <TextField
               label="Start Time"
               type="datetime-local"
@@ -184,6 +242,53 @@ export default function CalendarLayout() {
               onChange={(e) =>
                 setNewEvent({ ...newEvent, end: e.target.value })
               }
+            />
+            <Autocomplete
+              multiple
+              options={users}
+              getOptionLabel={(option) => option.name}
+              value={selectedUser}
+              onChange={(_, newValue) => setSelectedUser(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Participants"
+                  placeholder="Select users"
+                />
+              )}
+              renderOption={(props, option) => {
+                const { key, ...rest } = props;
+                return (
+                  <Box
+      component="li"
+      key={key}
+      {...rest}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        py: 1,
+      }}
+    >
+                    <Avatar
+                      src={
+                        option.avatar_url ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          option.name
+                        )}&background=random`
+                      }
+                      alt={option.name}
+                      sx={{ width: 32, height: 32 }}
+                    />
+                    <Box>
+                      <Typography variant="body1">{option.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.department_name}
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              }}
             />
           </DialogContent>
           <DialogActions>
@@ -227,6 +332,7 @@ export default function CalendarLayout() {
           </DialogActions>
         </Dialog>
       </Grid>
+      <ToastContainer></ToastContainer>
     </MainLayout>
   );
 }
