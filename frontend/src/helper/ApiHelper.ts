@@ -111,10 +111,11 @@ class ApiHelper {
     }
   }
 
-  async delete(endpoint: string): Promise<any> {
+
+  async patch(url: string, data: any): Promise<any> {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await axios.delete(`${this.baseURL}${endpoint}`, {
+      const response = await axios.patch(`${this.baseURL}${url}`, data, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -141,7 +142,24 @@ class ApiHelper {
       this.handleError(error);
     }
   }
-  
+
+
+  async delete(url: string): Promise<any> {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axios.delete(`${this.baseURL}${url}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return response.data;
+    } catch (error: any) {
+      this.handleError(error);
+    }
+  }
+
 }
 
 export default ApiHelper;

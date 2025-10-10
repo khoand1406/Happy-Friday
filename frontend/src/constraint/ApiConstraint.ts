@@ -29,6 +29,11 @@ export const REJECT_EVENT= (id:number)=> `/api/events/reject/${id}`
 
 // Invites
 export const INVITES= '/api/invites'
+// Projects
+export const PROJECTS= '/api/projects'
+export const PROJECT_DETAIL= (id: number | string)=> `/api/projects/${id}`
+export const PROJECT_STATUS= (id: number | string)=> `/api/projects/${id}/status`
+export const PROJECT_UPDATES= (id: number | string)=> `/api/projects/${id}/updates`
 
 
 
