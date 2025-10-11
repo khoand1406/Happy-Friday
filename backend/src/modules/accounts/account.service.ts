@@ -23,36 +23,67 @@ export class AccountsService {
   async list(page = 1, perPage = 10) {
     const from = (page - 1) * perPage;
     const to = from + perPage - 1;
-  
-    // 1) Core profiles từ bảng users (service role)
-    const { data: coreProfiles, error: coreErr } = await supabaseAdmin
+
+    // Lấy danh sách users từ bảng users
+    const { data: users, count, error } = await supabaseAdmin
       .from('users')
-      .select('id,name,phone,role_id,department_id, avatar_url')
+      .select('id,name,phone,role_id,department_id,avatar_url', { count: 'exact' })
       .range(from, to);
-    if (coreErr) throw new InternalServerErrorException(coreErr.message);
-  
-    // 2) Email + trạng thái từ Auth users (service role)
-    const { data: authUsers, error: authErr } = await (supabaseAdmin as any)
-      .auth.admin.listUsers({ page: Math.max(1, page), perPage: Math.max(1, perPage) });
-    if (authErr) throw new InternalServerErrorException(authErr.message);
-  
+    
+    if (error) throw new InternalServerErrorException(error.message);
+
+    // Lấy email từ auth.users cho từng user
+    const userIds = (users || []).map((u: any) => u.id);
     const idToEmail = new Map<string, string>();
     const idToDisabled = new Map<string, boolean>();
-    (authUsers?.users || []).forEach((u: any) => {
-      if (u?.id) {
-        idToEmail.set(u.id, u.email);
-        const bannedUntil = (u as any)?.banned_until || (u as any)?.ban_until || (u as any)?.banExpiresAt;
-        const isDisabled = bannedUntil ? new Date(bannedUntil).getTime() > Date.now() : false;
-        idToDisabled.set(u.id, !!isDisabled);
+    
+    if (userIds.length > 0) {
+      try {
+        // Lấy tất cả auth users
+        const { data: authUsers, error: authErr } = await (supabaseAdmin as any)
+          .auth.admin.listUsers();
+        
+        if (!authErr && authUsers?.users) {
+          authUsers.users.forEach((u: any) => {
+            if (u?.id && userIds.includes(u.id)) {
+              idToEmail.set(u.id, u.email);
+              const bannedUntil = (u as any)?.banned_until || (u as any)?.ban_until || (u as any)?.banExpiresAt;
+              const isDisabled = bannedUntil ? new Date(bannedUntil).getTime() > Date.now() : false;
+              idToDisabled.set(u.id, !!isDisabled);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Could not fetch auth users:', e);
       }
-    });
-  
-    // 3) Ghép dữ liệu
-    return (coreProfiles || []).map((p: any) => ({
-      ...p,
-      email: idToEmail.get(p.id) || null,
-      is_disabled: idToDisabled.get(p.id) ?? false,
+    }
+
+    // Lấy thông tin department
+    const departmentIds = [...new Set((users || []).map((u: any) => u.department_id).filter(Boolean))];
+    const idToDepartment = new Map<number, string>();
+    
+    if (departmentIds.length > 0) {
+      const { data: departments } = await supabaseAdmin
+        .from('department')
+        .select('id,name')
+        .in('id', departmentIds);
+      
+      (departments || []).forEach((d: any) => {
+        idToDepartment.set(d.id, d.name);
+      });
+    }
+
+    const items = (users || []).map((u: any) => ({
+      id: u.id,
+      name: u.name,
+      phone: u.phone,
+      email: idToEmail.get(u.id) || null,
+      department_name: idToDepartment.get(u.department_id) || null,
+      avatar_url: u.avatar_url || null,
+      is_disabled: idToDisabled.get(u.id) ?? false,
     }));
+
+    return { items, total: typeof count === 'number' ? count : items.length };
   }
 
   async create(payload: CreateAccountPayload) {

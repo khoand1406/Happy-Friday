@@ -16,6 +16,8 @@ export type ProjectDetailResponse = {
   updates: any[];
 };
 
+export type Paginated<T> = { items: T[]; total: number };
+
 export const getProjects = async (params?: { page?: number; perpage?: number; status?: string; search?: string; }) => {
   const api = new ApiHelper(BaseURl);
   const query = new URLSearchParams();
@@ -24,7 +26,8 @@ export const getProjects = async (params?: { page?: number; perpage?: number; st
   if (params?.status) query.append('status', params.status);
   if (params?.search) query.append('search', params.search);
   const endpoint = query.toString() ? `${PROJECTS}?${query.toString()}` : PROJECTS;
-  return api.get(endpoint) as Promise<ProjectItem[]>;
+  const res = await api.get(endpoint);
+  return res as Promise<Paginated<ProjectItem>>;
 };
 
 export const getProjectDetail = async (id: number | string) => {
@@ -60,6 +63,21 @@ export const postProjectUpdate = async (id: number | string, payload: { title: s
 export const deleteProject = async (id: number | string) => {
   const api = new ApiHelper(BaseURl);
   return api.delete(PROJECT_DETAIL(id));
+};
+
+export const removeProjectMember = async (projectId: number | string, userId: string) => {
+  const api = new ApiHelper(BaseURl);
+  return api.delete(`/api/projects/${projectId}/members/${userId}`);
+};
+
+export const removeProjectUpdate = async (projectId: number | string, updateId: number | string) => {
+  const api = new ApiHelper(BaseURl);
+  return api.delete(`/api/projects/${projectId}/updates/${updateId}`);
+};
+
+export const updateProjectUpdate = async (projectId: number | string, updateId: number | string, payload: { title: string; content: string }) => {
+  const api = new ApiHelper(BaseURl);
+  return api.patch(`/api/projects/${projectId}/updates/${updateId}`, payload);
 };
 
 

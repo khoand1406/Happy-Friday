@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, IconButton, MenuItem, Paper, Select, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, IconButton, MenuItem, Paper, Select, Stack, TextField, Tooltip, Typography, Pagination } from "@mui/material";
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import BlockIcon from '@mui/icons-material/Block';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import KeyIcon from '@mui/icons-material/Key';
-import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import MainLayout from "../layout/MainLayout";
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
@@ -14,43 +16,53 @@ import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material"
 import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount } from "../services/accounts.service";
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
-import { getProjects, deleteProject, type ProjectItem } from "../services/project.service";
+import { getProjects, deleteProject, createProject, type ProjectItem } from "../services/project.service";
 
 type TabKey = 'accounts' | 'projects';
 
 export const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('accounts');
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [accountsTotal, setAccountsTotal] = useState<number>(0);
   const [openCreate, setOpenCreate] = useState(false);
+  const [openCreateProject, setOpenCreateProject] = useState(false);
   const [openEdit, setOpenEdit] = useState<null | AccountItem>(null);
   const [openReset, setOpenReset] = useState<null | AccountItem>(null);
-  const [page] = useState(1);
-  const [perpage] = useState(10);
+  const [page, setPage] = useState(1);
+  const [perpage] = useState(5);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [openBan, setOpenBan] = useState<null | AccountItem>(null);
   const [openEnableConfirm, setOpenEnableConfirm] = useState<null | AccountItem>(null);
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [filterDepId, setFilterDepId] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [accountSearch, setAccountSearch] = useState<string>('');
+  const [accountStatus, setAccountStatus] = useState<string>('');
   const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [projectsTotal, setProjectsTotal] = useState<number>(0);
+  const [projectPage, setProjectPage] = useState<number>(1);
+  const [projectPerpage] = useState<number>(5);
   const [projectSearch, setProjectSearch] = useState<string>('');
   const [projectStatus, setProjectStatus] = useState<string>('');
+  const [projectDateFrom, setProjectDateFrom] = useState<string>('');
+  const [projectDateTo, setProjectDateTo] = useState<string>('');
   const [deleteProjectDialog, setDeleteProjectDialog] = useState<ProjectItem | null>(null);
 
   const load = async () => {
     const data = await listAccounts(page, perpage);
-    const normalized = (data ?? []).map((x: any) => ({
+    const items = (data?.items ?? []) as any[];
+    const normalized = items.map((x: any) => ({
       ...x,
       id: x.id ?? x.profile_id ?? x.user_id ?? x.uid ?? x.UUID ?? x.sub ?? null,
     }));
     setAccounts(normalized);
+    setAccountsTotal(data?.total ?? normalized.length);
   };
 
   const loadProjects = async () => {
     try {
-      const data = await getProjects({ page: 1, perpage: 20, search: projectSearch, status: projectStatus });
-      setProjects(data || []);
+      const data = await getProjects({ page: projectPage, perpage: projectPerpage, status: projectStatus || undefined, search: projectSearch || undefined });
+      const items = (data?.items ?? []) as ProjectItem[];
+      setProjects(items);
+      setProjectsTotal(data?.total ?? items.length);
     } catch (e) {
       console.error('Failed to load projects:', e);
     }
@@ -73,9 +85,60 @@ export const AdminDashboard: React.FC = () => {
     if (tab === 'projects') loadProjects();
   }, [tab]);
 
-  useEffect(() => {
+  useEffect(()=>{
+    // reload when page changes
+    if (tab === 'accounts') load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  useEffect(()=>{
+    // reload projects when project page changes
     if (tab === 'projects') loadProjects();
-  }, [projectSearch, projectStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectPage]);
+
+  // Filter projects ở frontend
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project: any) => {
+      // Tìm kiếm theo tên và mô tả
+      const searchOk = projectSearch === '' ? true : (
+        project.name?.toLowerCase().includes(projectSearch.toLowerCase()) ||
+        project.description?.toLowerCase().includes(projectSearch.toLowerCase())
+      );
+      
+      // Filter theo trạng thái
+      const statusOk = projectStatus === '' ? true : project.status === projectStatus;
+      
+      // Tìm kiếm theo khoảng thời gian
+      const timeOk = (() => {
+        if (!projectDateFrom && !projectDateTo) return true;
+        
+        const startDate = project.start_date ? new Date(project.start_date) : null;
+        const endDate = project.end_date ? new Date(project.end_date) : null;
+        const fromDate = projectDateFrom ? new Date(projectDateFrom) : null;
+        const toDate = projectDateTo ? new Date(projectDateTo) : null;
+        
+        // Nếu chỉ có from date
+        if (fromDate && !toDate) {
+          return startDate && startDate >= fromDate;
+        }
+        
+        // Nếu chỉ có to date
+        if (toDate && !fromDate) {
+          return endDate && endDate <= toDate;
+        }
+        
+        // Nếu có cả from và to date
+        if (fromDate && toDate) {
+          return (startDate && startDate >= fromDate) || (endDate && endDate <= toDate);
+        }
+        
+        return true;
+      })();
+      
+      return searchOk && statusOk && timeOk;
+    });
+  }, [projects, projectSearch, projectStatus, projectDateFrom, projectDateTo]);
 
   useEffect(()=>{
     const loadDeps = async ()=>{
@@ -84,23 +147,45 @@ export const AdminDashboard: React.FC = () => {
     loadDeps();
   }, []);
 
+  useEffect(()=>{
+    // reset project page and reload when filters change
+    setProjectPage(1);
+    if (tab === 'projects') loadProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectSearch, projectStatus, projectDateFrom, projectDateTo]);
+
   const filteredAccounts = useMemo(()=>{
+    // Helper function để lấy tên phòng ban
+    const getDepartmentName = (id?: number|string|null) => {
+      const depId = typeof id === 'string' ? Number(id) : id;
+      const found = departments.find(d=> d.id === depId);
+      return found?.name || '-';
+    };
+
     return accounts.filter((u:any)=>{
-      const depOk = filterDepId === '' ? true : Number(u.department_id) === Number(filterDepId);
-      const stOk = filterStatus === 'all' ? true : (
-        filterStatus === 'disabled' ? !!u.is_disabled : !u.is_disabled
+      // Lấy tên phòng ban giống như cách hiển thị trong bảng
+      const departmentName = (u as any).department_name || getDepartmentName((u as any).department_id);
+      
+      const searchOk = accountSearch === '' ? true : (
+        u.email?.toLowerCase().includes(accountSearch.toLowerCase()) ||
+        (u.full_name || u.fullname || u.name || u.display_name || '')?.toLowerCase().includes(accountSearch.toLowerCase()) ||
+        (u.phone || u.phone_number || '')?.includes(accountSearch) ||
+        departmentName?.toLowerCase().includes(accountSearch.toLowerCase())
       );
-      return depOk && stOk;
+      const statusOk = accountStatus === '' ? true : (
+        accountStatus === 'disabled' ? !!u.is_disabled : !u.is_disabled
+      );
+      return searchOk && statusOk;
     });
-  }, [accounts, filterDepId, filterStatus]);
+  }, [accounts, accountSearch, accountStatus, departments]);
 
   const chipLabel = useMemo(()=>{
-    if (filterDepId !== '' && filterStatus !== 'all') return 'Lọc theo phòng ban & trạng thái';
-    if (filterDepId !== '') return 'Lọc theo phòng ban';
-    if (filterStatus === 'disabled') return 'Lọc theo Disabled';
-    if (filterStatus === 'enabled') return 'Lọc theo Enabled';
+    if (accountSearch !== '' && accountStatus !== '') return 'Tìm kiếm & trạng thái';
+    if (accountSearch !== '') return `Tìm kiếm: "${accountSearch}"`;
+    if (accountStatus === 'disabled') return 'Trạng thái: Disabled';
+    if (accountStatus === 'enabled') return 'Trạng thái: Enabled';
     return 'Tất cả';
-  }, [filterDepId, filterStatus]);
+  }, [accountSearch, accountStatus]);
 
   return (
     <MainLayout showDrawer={false}>
@@ -129,54 +214,110 @@ export const AdminDashboard: React.FC = () => {
               Thêm tài khoản
             </Button>
           )}
+          {tab === 'projects' && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={()=>setOpenCreateProject(true)} sx={{ borderRadius: 2 }}>
+              Thêm dự án
+            </Button>
+          )}
         </Stack>
 
         {tab === 'accounts' && (
           <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
-            <Button variant="outlined" size="small" startIcon={<TuneOutlinedIcon />} sx={{ borderRadius: 2 }} onClick={()=>setFilterOpen(true)}>Lọc</Button>
-            <Chip label={chipLabel} size="small" sx={{ borderRadius: 1 }} onDelete={(filterDepId!=='' || filterStatus!=='all')?()=>{setFilterDepId(''); setFilterStatus('all');}:undefined} />
-          </Stack>
-        )}
-
-        {tab === 'projects' && (
-          <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
             <TextField 
               size="small" 
-              placeholder="Tìm kiếm dự án..." 
-              value={projectSearch} 
-              onChange={(e) => setProjectSearch(e.target.value)}
+              placeholder="Tìm kiếm tài khoản..." 
+              value={accountSearch} 
+              onChange={(e) => setAccountSearch(e.target.value)}
               sx={{ minWidth: 200 }}
             />
             <Select 
               size="small" 
-              value={projectStatus} 
-              onChange={(e) => setProjectStatus(e.target.value)}
+              value={accountStatus} 
+              onChange={(e) => setAccountStatus(e.target.value)}
               displayEmpty
               sx={{ minWidth: 120 }}
             >
-              <MenuItem value="">Tất cả</MenuItem>
-              <MenuItem value="IN COMMING">IN COMMING</MenuItem>
-              <MenuItem value="PROGRESSING">PROGRESSING</MenuItem>
-              <MenuItem value="COMPLETED">COMPLETED</MenuItem>
+              <MenuItem value="">Tất cả trạng thái</MenuItem>
+              <MenuItem value="enabled">Enabled</MenuItem>
+              <MenuItem value="disabled">Disabled</MenuItem>
             </Select>
-            <Button variant="contained" size="small" onClick={loadProjects}>Tìm kiếm</Button>
+            <Chip label={chipLabel} size="small" sx={{ borderRadius: 1 }} onDelete={(accountSearch!=='' || accountStatus!=='')?()=>{setAccountSearch(''); setAccountStatus('');}:undefined} />
           </Stack>
         )}
 
+        {tab === 'projects' && (
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
+              <TextField 
+                size="small" 
+                placeholder="Tìm kiếm" 
+                value={projectSearch} 
+                onChange={(e) => setProjectSearch(e.target.value)}
+                sx={{ minWidth: 200 }}
+              />
+              <DatePicker
+                label="Từ ngày"
+                value={projectDateFrom ? new Date(projectDateFrom) : null}
+                onChange={(date) => setProjectDateFrom(date ? date.toISOString().split('T')[0] : '')}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    sx: { minWidth: 150 }
+                  }
+                }}
+              />
+              <DatePicker
+                label="Đến ngày"
+                value={projectDateTo ? new Date(projectDateTo) : null}
+                onChange={(date) => setProjectDateTo(date ? date.toISOString().split('T')[0] : '')}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    sx: { minWidth: 150 }
+                  }
+                }}
+              />
+              <Select 
+                size="small" 
+                value={projectStatus} 
+                onChange={(e) => setProjectStatus(e.target.value)}
+                displayEmpty
+                sx={{ minWidth: 120 }}
+              >
+                <MenuItem value="">Tất cả trạng thái</MenuItem>
+                <MenuItem value="IN COMMING">IN COMMING</MenuItem>
+                <MenuItem value="PROGRESSING">PROGRESSING</MenuItem>
+                <MenuItem value="COMPLETED">COMPLETED</MenuItem>
+              </Select>
+            </Stack>
+          </LocalizationProvider>
+        )}
+
           {tab === 'accounts' && (
-            <AccountsTable items={filteredAccounts as any} departments={departments} onReload={load} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} onBan={(u)=>setOpenBan(u)} onEnableConfirm={(u)=>setOpenEnableConfirm(u)} />
+            <>
+              <AccountsTable items={filteredAccounts as any} departments={departments} onReload={load} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} onBan={(u)=>setOpenBan(u)} onEnableConfirm={(u)=>setOpenEnableConfirm(u)} />
+              <Stack alignItems="center" mt={2}>
+                <Pagination count={Math.max(1, Math.ceil(accountsTotal / perpage))} page={page} onChange={(_, v)=> setPage(v)} />
+              </Stack>
+            </>
           )}
 
           {tab === 'projects' && (
-            <ProjectsTable items={projects} onReload={loadProjects} onDelete={setDeleteProjectDialog} />
+            <>
+              <ProjectsTable items={filteredProjects} onReload={loadProjects} onDelete={setDeleteProjectDialog} />
+              <Stack alignItems="center" mt={2}>
+                <Pagination count={Math.max(1, Math.ceil(projectsTotal / projectPerpage))} page={projectPage} onChange={(_, v)=> setProjectPage(v)} />
+              </Stack>
+            </>
           )}
+
+        <CreateProjectDialog open={openCreateProject} onClose={()=>setOpenCreateProject(false)} onCreated={() => { setOpenCreateProject(false); loadProjects(); }} />
 
         <CreateDialog open={openCreate} onClose={()=>setOpenCreate(false)} onCreated={()=>{setOpenCreate(false); load();}} />
         <EditDialog item={openEdit} onClose={()=>setOpenEdit(null)} onUpdated={()=>{setOpenEdit(null); load();}} />
           <ResetDialog item={openReset} onClose={()=>setOpenReset(null)} onUpdated={()=>{setOpenReset(null);}} />
           <BanDialog item={openBan} onClose={()=>setOpenBan(null)} onDone={()=>{setOpenBan(null); load();}} />
           <EnableConfirmDialog item={openEnableConfirm} onClose={()=>setOpenEnableConfirm(null)} onDone={()=>{setOpenEnableConfirm(null); load();}} />
-          <FilterDialog open={filterOpen} onClose={()=>setFilterOpen(false)} departments={departments} filterDepId={filterDepId} setFilterDepId={setFilterDepId} filterStatus={filterStatus} setFilterStatus={setFilterStatus} />
           <ImagePreviewDialog url={previewImage} onClose={()=>setPreviewImage(null)} />
           <DeleteProjectDialog item={deleteProjectDialog} onClose={()=>setDeleteProjectDialog(null)} onDelete={handleDeleteProject} />
         </Box>
@@ -208,7 +349,7 @@ const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentRes
             <Box>
               <Avatar src={(u as any).avatar_url || ''} sx={{ width: 36, height: 36, cursor: ((u as any).avatar_url ? 'pointer' : 'default') }} onClick={()=> onPreview((u as any).avatar_url || null)} />
             </Box>
-            <Typography sx={{ fontWeight: 600 }}>{u.email}</Typography>
+            <Typography sx={{ fontWeight: 600 }}>{u.email || '-'}</Typography>
             <Typography>{(u as any).full_name || (u as any).fullname || (u as any).name || (u as any).display_name || '-'}</Typography>
             <Typography>{(u as any).phone || (u as any).phone_number || '-'}</Typography>
             <Typography>{(u as any).department_name || depNameById((u as any).department_id)}</Typography>
@@ -456,30 +597,47 @@ const EnableConfirmDialog: React.FC<{ item: AccountItem | null; onClose: ()=>voi
   );
 };
 
-const FilterDialog: React.FC<{ open: boolean; onClose: ()=>void; departments: DepartmentResponse[]; filterDepId: string; setFilterDepId: (v:string)=>void; filterStatus: 'all'|'enabled'|'disabled'; setFilterStatus: (v:'all'|'enabled'|'disabled')=>void; }> = ({ open, onClose, departments, filterDepId, setFilterDepId, filterStatus, setFilterStatus }) => {
+const CreateProjectDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreated: ()=>void; }> = ({ open, onClose, onCreated }) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState('IN COMMING');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  const submit = async () => {
+    try {
+      await createProject({ name, description, status, start_date: startDate || undefined, end_date: endDate || undefined });
+      onCreated();
+      setName(''); setDescription(''); setStatus('IN COMMING'); setStartDate(''); setEndDate('');
+    } catch (e) {
+      console.error('Failed to create project', e);
+    }
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Bộ lọc</DialogTitle>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Thêm dự án</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <Select value={filterDepId} onChange={e=>setFilterDepId(String(e.target.value))} displayEmpty fullWidth>
-            <MenuItem value=""><em>Tất cả phòng ban</em></MenuItem>
-            {departments.map(d=> (<MenuItem key={d.id} value={String(d.id)}>{d.name}</MenuItem>))}
+          <TextField label="Tên dự án" value={name} onChange={e=>setName(e.target.value)} fullWidth />
+          <TextField label="Mô tả" value={description} onChange={e=>setDescription(e.target.value)} fullWidth multiline rows={3} />
+          <Select value={status} onChange={e=>setStatus(String(e.target.value))} fullWidth>
+            <MenuItem value={'IN COMMING'}>IN COMMING</MenuItem>
+            <MenuItem value={'PROGRESSING'}>PROGRESSING</MenuItem>
+            <MenuItem value={'COMPLETED'}>COMPLETED</MenuItem>
           </Select>
-          <Select value={filterStatus} onChange={e=>setFilterStatus(e.target.value as any)} fullWidth>
-            <MenuItem value={'all'}>Tất cả trạng thái</MenuItem>
-            <MenuItem value={'enabled'}>Enabled</MenuItem>
-            <MenuItem value={'disabled'}>Disabled</MenuItem>
-          </Select>
+          <TextField label="Từ ngày" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+          <TextField label="Đến ngày" type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Đóng</Button>
-        <Button variant="contained" onClick={onClose}>Áp dụng</Button>
+        <Button onClick={onClose}>Hủy</Button>
+        <Button variant="contained" onClick={submit}>Tạo</Button>
       </DialogActions>
     </Dialog>
   );
 };
+
 
 const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; onDelete: (item: ProjectItem)=>void; }> = ({ items, onDelete }) => {
   return (

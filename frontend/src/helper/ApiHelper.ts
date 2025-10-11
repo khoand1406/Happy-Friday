@@ -147,6 +147,7 @@ class ApiHelper {
   async delete(url: string): Promise<any> {
     try {
       const token = localStorage.getItem("accessToken");
+      console.log('ApiHelper DELETE:', { url: `${this.baseURL}${url}`, token: token ? 'exists' : 'missing' });
       const response = await axios.delete(`${this.baseURL}${url}`, {
         headers: {
           "Content-Type": "application/json",
@@ -156,6 +157,7 @@ class ApiHelper {
 
       return response.data;
     } catch (error: any) {
+      console.log('ApiHelper DELETE error:', error.response?.data || error.message);
       this.handleError(error);
     }
   }
@@ -163,3 +165,7 @@ class ApiHelper {
 }
 
 export default ApiHelper;
+
+
+
+

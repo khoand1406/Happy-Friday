@@ -1,14 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import ReactECharts from "echarts-for-react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import type { DepartmentResponse } from "../models/response/dep.response";
 import { useNavigate } from "react-router-dom";
+import ReactECharts from "echarts-for-react";
 
-interface Props {
+type DepartmentOrgChartProps = {
   departments: DepartmentResponse[];
   centerName?: string;
 }
 
-export const DepartmentOrgChart: React.FC<Props> = ({
+export const DepartmentOrgChart: React.FC<DepartmentOrgChartProps> = ({
   departments,
   centerName = "Zen8Labs",
 }) => {
@@ -151,7 +151,6 @@ export const DepartmentOrgChart: React.FC<Props> = ({
             <div style="min-width:180px">
               <strong>${d.name}</strong><br/>
               👥 ${d.memberCount} Members<br/>
-              📈 KPI: ${d.kpi}<br/>
               📝 ${d.description}
             </div>`;
         },

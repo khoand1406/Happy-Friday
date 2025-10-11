@@ -18,8 +18,8 @@ export default function ProjectList() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await getProjects({ page, perpage: PER_PAGE, search, status });
-      setProjects(data || []);
+      const response = await getProjects({ page, perpage: PER_PAGE, search, status });
+      setProjects(response?.items || []);
     } finally {
       setLoading(false);
     }

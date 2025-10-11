@@ -30,9 +30,11 @@ export interface UpdateAccountRequest {
 
 const api = new ApiHelper(BaseURl);
 
-export const listAccounts = async (page = 1, perpage = 10): Promise<AccountItem[]> => {
+export type Paginated<T> = { items: T[]; total: number };
+
+export const listAccounts = async (page = 1, perpage = 10): Promise<Paginated<AccountItem>> => {
   const res = await api.get(`${ACCOUNTS}`, { page, perpage });
-  return res as AccountItem[];
+  return res as Paginated<AccountItem>;
 };
 
 export const createAccount = async (payload: CreateAccountRequest): Promise<AccountItem> => {

@@ -33,7 +33,8 @@ import {
   Person,
   Update
 } from "@mui/icons-material";
-import { getProjectDetail, postProjectUpdate, updateProject, deleteProject, type ProjectDetailResponse } from "../services/project.service";
+import { getProjectDetail, postProjectUpdate, updateProject, deleteProject, removeProjectMember, removeProjectUpdate, updateProjectUpdate, type ProjectDetailResponse } from "../services/project.service";
+import ApiHelper from "../helper/ApiHelper";
 import MainLayout from "../layout/MainLayout";
 
 interface TabPanelProps {
@@ -68,6 +69,17 @@ export default function AdminProjectDetail() {
   const [addingUpdate, setAddingUpdate] = useState<boolean>(false);
   const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [addMemberDialogOpen, setAddMemberDialogOpen] = useState<boolean>(false);
+  const [deleteMemberDialogOpen, setDeleteMemberDialogOpen] = useState<boolean>(false);
+  const [memberToDelete, setMemberToDelete] = useState<any>(null);
+  const [deleteUpdateDialogOpen, setDeleteUpdateDialogOpen] = useState<boolean>(false);
+  const [updateToDelete, setUpdateToDelete] = useState<any>(null);
+  const [editUpdateDialogOpen, setEditUpdateDialogOpen] = useState<boolean>(false);
+  const [updateToEdit, setUpdateToEdit] = useState<any>(null);
+  const [editUpdateForm, setEditUpdateForm] = useState({
+    title: '',
+    content: ''
+  });
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
@@ -75,6 +87,11 @@ export default function AdminProjectDetail() {
     start_date: '',
     end_date: ''
   });
+  const [addMemberForm, setAddMemberForm] = useState({
+    user_id: '',
+    project_role: ''
+  });
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
 
   const fetchProjectDetail = async () => {
     if (!id) return;
@@ -89,9 +106,35 @@ export default function AdminProjectDetail() {
     }
   };
 
+  const fetchAvailableUsers = async () => {
+    try {
+      const api = new ApiHelper(import.meta.env.VITE_API_URL || 'http://localhost:3000');
+      // Use admin accounts listing to avoid RLS issues on users view
+      const response = await api.get('/api/accounts?page=1&perpage=100');
+      
+      // API trả về { items: [...], total: ... }
+      const data = response?.items || [];
+      
+      // Lọc ra những user chưa tham gia dự án này
+      const currentMemberIds = projectDetail?.members?.map(m => m.id) || [];
+      const availableUsers = data.filter((user: any) => !currentMemberIds.includes(user.id));
+      
+      console.log('Available users:', availableUsers); // Debug log
+      setAvailableUsers(availableUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
   useEffect(() => {
     fetchProjectDetail();
   }, [id]);
+
+  useEffect(() => {
+    if (addMemberDialogOpen) {
+      fetchAvailableUsers();
+    }
+  }, [addMemberDialogOpen]);
 
   useEffect(() => {
     if (projectDetail) {
@@ -150,6 +193,24 @@ export default function AdminProjectDetail() {
     }
   };
 
+  const handleAddMember = async () => {
+    if (!id || !addMemberForm.user_id || !addMemberForm.project_role) return;
+    
+    try {
+      const api = new ApiHelper(import.meta.env.VITE_API_URL || 'http://localhost:3000');
+      await api.post(`/api/projects/${id}/members`, {
+        user_id: addMemberForm.user_id,
+        project_role: addMemberForm.project_role
+      });
+      
+      setAddMemberDialogOpen(false);
+      setAddMemberForm({ user_id: '', project_role: '' });
+      await fetchProjectDetail(); // Reload project detail
+    } catch (error) {
+      console.error("Error adding member:", error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'COMPLETED': return 'success';
@@ -161,6 +222,72 @@ export default function AdminProjectDetail() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
+  };
+
+  const handleDeleteMember = async () => {
+    if (!memberToDelete || !id) return;
+    
+    try {
+      console.log('Attempting to delete member:', { projectId: id, userId: memberToDelete.id });
+      console.log('Token:', localStorage.getItem("accessToken"));
+      await removeProjectMember(id, memberToDelete.id);
+      setDeleteMemberDialogOpen(false);
+      setMemberToDelete(null);
+      // Reload project detail to refresh members list
+      await fetchProjectDetail();
+    } catch (error) {
+      console.error('Error removing member:', error);
+    }
+  };
+
+  const openDeleteMemberDialog = (member: any) => {
+    setMemberToDelete(member);
+    setDeleteMemberDialogOpen(true);
+  };
+
+  const handleDeleteUpdate = async () => {
+    if (!updateToDelete || !id) return;
+    
+    try {
+      console.log('Attempting to delete update:', { projectId: id, updateId: updateToDelete.id });
+      await removeProjectUpdate(id, updateToDelete.id);
+      setDeleteUpdateDialogOpen(false);
+      setUpdateToDelete(null);
+      // Reload project detail to refresh updates list
+      await fetchProjectDetail();
+    } catch (error) {
+      console.error('Error removing update:', error);
+    }
+  };
+
+  const openDeleteUpdateDialog = (update: any) => {
+    setUpdateToDelete(update);
+    setDeleteUpdateDialogOpen(true);
+  };
+
+  const handleEditUpdate = async () => {
+    if (!updateToEdit || !id) return;
+    
+    try {
+      console.log('Attempting to edit update:', { projectId: id, updateId: updateToEdit.id, payload: editUpdateForm });
+      await updateProjectUpdate(id, updateToEdit.id, editUpdateForm);
+      setEditUpdateDialogOpen(false);
+      setUpdateToEdit(null);
+      setEditUpdateForm({ title: '', content: '' });
+      // Reload project detail to refresh updates list
+      await fetchProjectDetail();
+    } catch (error) {
+      console.error('Error editing update:', error);
+    }
+  };
+
+  const openEditUpdateDialog = (update: any) => {
+    setUpdateToEdit(update);
+    setEditUpdateForm({
+      title: update.title || '',
+      content: update.content || ''
+    });
+    setEditUpdateDialogOpen(true);
   };
 
   if (loading) {
@@ -280,9 +407,19 @@ export default function AdminProjectDetail() {
 
             {/* Members Tab */}
             <TabPanel value={tabValue} index={0}>
-              <Typography variant="h6" gutterBottom>
-                Danh sách thành viên
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6">
+                  Danh sách thành viên
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => setAddMemberDialogOpen(true)}
+                  size="small"
+                >
+                  Thêm thành viên
+                </Button>
+              </Stack>
               <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
                 {members.map((member: any) => (
                   <Box key={member.id} sx={{ minWidth: 300, flex: '1 1 300px' }}>
@@ -308,6 +445,15 @@ export default function AdminProjectDetail() {
                               sx={{ mt: 0.5 }}
                             />
                           </Box>
+                          <Tooltip title="Xóa thành viên">
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => openDeleteMemberDialog(member)}
+                            >
+                              <Delete />
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </CardContent>
                     </Card>
@@ -394,15 +540,39 @@ export default function AdminProjectDetail() {
                 {updates.map((update: any) => (
                   <Card key={update.id} variant="outlined">
                     <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        {update.title}
-                      </Typography>
-                      <Typography variant="body1" paragraph>
-                        {update.content}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatDate(update.created_at)}
-                      </Typography>
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="h6" gutterBottom>
+                            {update.title}
+                          </Typography>
+                          <Typography variant="body1" paragraph>
+                            {update.content}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDate(update.created_at)}
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1}>
+                          <Tooltip title="Sửa cập nhật">
+                            <IconButton 
+                              size="small" 
+                              color="primary"
+                              onClick={() => openEditUpdateDialog(update)}
+                            >
+                              <Update />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Xóa cập nhật">
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => openDeleteUpdateDialog(update)}
+                            >
+                              <Delete />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </Stack>
                     </CardContent>
                   </Card>
                 ))}
@@ -487,6 +657,127 @@ export default function AdminProjectDetail() {
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Hủy</Button>
           <Button variant="contained" color="error" onClick={handleDeleteProject}>Xóa</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Member Dialog */}
+      <Dialog open={addMemberDialogOpen} onClose={() => setAddMemberDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Thêm thành viên vào dự án</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Chọn thành viên</InputLabel>
+              <Select
+                value={addMemberForm.user_id}
+                onChange={(e) => setAddMemberForm({ ...addMemberForm, user_id: e.target.value })}
+                label="Chọn thành viên"
+              >
+                {availableUsers.map((user) => (
+                  <MenuItem key={user.id} value={user.id}>
+                    {user.name} - {user.email || 'Không có email'}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth size="small">
+              <InputLabel>Vai trò trong dự án</InputLabel>
+              <Select
+                value={addMemberForm.project_role}
+                onChange={(e) => setAddMemberForm({ ...addMemberForm, project_role: e.target.value })}
+                label="Vai trò trong dự án"
+              >
+                <MenuItem value="Project Manager">Project Manager</MenuItem>
+                <MenuItem value="Developer">Developer</MenuItem>
+                <MenuItem value="Designer">Designer</MenuItem>
+                <MenuItem value="Tester">Tester</MenuItem>
+                <MenuItem value="Business Analyst">Business Analyst</MenuItem>
+                <MenuItem value="Member">Member</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddMemberDialogOpen(false)}>Hủy</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleAddMember}
+            disabled={!addMemberForm.user_id || !addMemberForm.project_role}
+          >
+            Thêm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Member Dialog */}
+      <Dialog open={deleteMemberDialogOpen} onClose={() => setDeleteMemberDialogOpen(false)}>
+        <DialogTitle>Xác nhận xóa thành viên</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Bạn có chắc chắn muốn xóa thành viên <strong>{memberToDelete?.name}</strong> khỏi dự án này không?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteMemberDialogOpen(false)}>
+            Hủy
+          </Button>
+          <Button onClick={handleDeleteMember} color="error" variant="contained">
+            Xóa
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Update Dialog */}
+      <Dialog open={editUpdateDialogOpen} onClose={() => setEditUpdateDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Sửa cập nhật</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Tiêu đề"
+              value={editUpdateForm.title}
+              onChange={(e) => setEditUpdateForm({ ...editUpdateForm, title: e.target.value })}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Nội dung"
+              value={editUpdateForm.content}
+              onChange={(e) => setEditUpdateForm({ ...editUpdateForm, content: e.target.value })}
+              fullWidth
+              multiline
+              rows={4}
+              required
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditUpdateDialogOpen(false)}>
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleEditUpdate} 
+            variant="contained"
+            disabled={!editUpdateForm.title.trim() || !editUpdateForm.content.trim()}
+          >
+            Lưu
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Update Dialog */}
+      <Dialog open={deleteUpdateDialogOpen} onClose={() => setDeleteUpdateDialogOpen(false)}>
+        <DialogTitle>Xác nhận xóa cập nhật</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Bạn có chắc chắn muốn xóa cập nhật <strong>"{updateToDelete?.title}"</strong> không?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteUpdateDialogOpen(false)}>
+            Hủy
+          </Button>
+          <Button onClick={handleDeleteUpdate} color="error" variant="contained">
+            Xóa
+          </Button>
         </DialogActions>
       </Dialog>
     </MainLayout>
