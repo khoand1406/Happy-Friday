@@ -9,6 +9,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import BlockIcon from '@mui/icons-material/Block';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import KeyIcon from '@mui/icons-material/Key';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import MainLayout from "../layout/MainLayout";
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
@@ -17,11 +18,12 @@ import { createAccount, deleteAccount, disableAccount, enableAccount, listAccoun
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
 import { getProjects, deleteProject, createProject, type ProjectItem } from "../services/project.service";
+import { DashboardStats } from "../components/DashboardStats";
 
-type TabKey = 'accounts' | 'projects';
+type TabKey = 'dashboard' | 'accounts' | 'projects';
 
 export const AdminDashboard: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('accounts');
+  const [tab, setTab] = useState<TabKey>('dashboard');
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [accountsTotal, setAccountsTotal] = useState<number>(0);
   const [openCreate, setOpenCreate] = useState(false);
@@ -45,6 +47,17 @@ export const AdminDashboard: React.FC = () => {
   const [projectDateFrom, setProjectDateFrom] = useState<string>('');
   const [projectDateTo, setProjectDateTo] = useState<string>('');
   const [deleteProjectDialog, setDeleteProjectDialog] = useState<ProjectItem | null>(null);
+  
+  // Dashboard stats
+  const [dashboardStats, setDashboardStats] = useState({
+    totalMembers: 0,
+    activeMembers: 0,
+    totalProjects: 0,
+    activeProjects: 0,
+    completedProjects: 0,
+    newMembersThisWeek: 0,
+    newProjectsThisWeek: 0
+  });
 
   const load = async () => {
     const data = await listAccounts(page, perpage);
@@ -68,6 +81,49 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const loadDashboardStats = async () => {
+    try {
+      // Load accounts data
+      const accountsData = await listAccounts(1, 1000); // Get all accounts for stats
+      const allAccounts = (accountsData?.items ?? []) as any[];
+      
+      // Load projects data
+      const projectsData = await getProjects({ page: 1, perpage: 1000 }); // Get all projects for stats
+      const allProjects = (projectsData?.items ?? []) as ProjectItem[];
+      
+      // Calculate stats
+      const totalMembers = allAccounts.length;
+      const activeMembers = allAccounts.filter((acc: any) => acc.status === 'active' || acc.status === 'enabled').length;
+      
+      const totalProjects = allProjects.length;
+      const activeProjects = allProjects.filter(p => p.status === 'PROGRESSING').length;
+      const completedProjects = allProjects.filter(p => p.status === 'COMPLETED').length;
+      
+      // Calculate new members this week (mock data for now)
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const newMembersThisWeek = allAccounts.filter((acc: any) => 
+        new Date(acc.created_at || acc.createdAt) > oneWeekAgo
+      ).length;
+      
+      const newProjectsThisWeek = allProjects.filter(p => 
+        p.start_date && new Date(p.start_date) > oneWeekAgo
+      ).length;
+      
+      setDashboardStats({
+        totalMembers,
+        activeMembers,
+        totalProjects,
+        activeProjects,
+        completedProjects,
+        newMembersThisWeek,
+        newProjectsThisWeek
+      });
+    } catch (e) {
+      console.error('Failed to load dashboard stats:', e);
+    }
+  };
+
   const handleDeleteProject = async () => {
     if (!deleteProjectDialog) return;
     
@@ -81,6 +137,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    if (tab === 'dashboard') loadDashboardStats();
     if (tab === 'accounts') load();
     if (tab === 'projects') loadProjects();
   }, [tab]);
@@ -194,6 +251,10 @@ export const AdminDashboard: React.FC = () => {
         <Paper elevation={0} sx={{ width: 220, p: 2, borderRight: '1px solid #eef0f3', height: 'calc(100vh - 112px)' }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Admin</Typography>
           <List>
+            <ListItemButton selected={tab==='dashboard'} onClick={()=>setTab('dashboard')} sx={{ borderRadius: 2 }}>
+              <ListItemIcon><DashboardIcon /></ListItemIcon>
+              <ListItemText primary="Dashboard" />
+            </ListItemButton>
             <ListItemButton selected={tab==='accounts'} onClick={()=>setTab('accounts')} sx={{ borderRadius: 2 }}>
               <ListItemIcon><PeopleAltOutlinedIcon /></ListItemIcon>
               <ListItemText primary="QL tài khoản" />
@@ -208,7 +269,9 @@ export const AdminDashboard: React.FC = () => {
         {/* Nội dung */}
         <Box sx={{ flex: 1 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>{tab === 'accounts' ? 'Quản lý tài khoản' : 'Quản lý dự án'}</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              {tab === 'dashboard' ? 'Dashboard' : tab === 'accounts' ? 'Quản lý tài khoản' : 'Quản lý dự án'}
+            </Typography>
           {tab === 'accounts' && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={()=>setOpenCreate(true)} sx={{ borderRadius: 2 }}>
               Thêm tài khoản
@@ -300,6 +363,10 @@ export const AdminDashboard: React.FC = () => {
                 <Pagination count={Math.max(1, Math.ceil(accountsTotal / perpage))} page={page} onChange={(_, v)=> setPage(v)} />
               </Stack>
             </>
+          )}
+
+          {tab === 'dashboard' && (
+            <DashboardStats stats={dashboardStats} />
           )}
 
           {tab === 'projects' && (
