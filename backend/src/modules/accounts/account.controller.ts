@@ -56,6 +56,17 @@ class UpdateByEmailDto extends UpdateAccountDto {
   email: string;
 }
 
+class ScheduleTransferDto {
+  @IsString()
+  user_id: string;
+
+  @IsNumber()
+  to_department_id: number;
+
+  @IsString()
+  effective_date: string; // ISO string
+}
+
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('accounts')
 export class AccountsController {
@@ -110,6 +121,21 @@ export class AccountsController {
   @Post('import')
   async importAccounts(@Body() payload: { accounts: CreateAccountDto[] }) {
     return this.accountsService.importAccounts(payload.accounts);
+  }
+
+  // Department transfer scheduling
+  @Post('transfer/schedule')
+  async scheduleDepartmentTransfer(@Body() payload: ScheduleTransferDto) {
+    return this.accountsService.scheduleDepartmentTransfer(
+      payload.user_id,
+      Number(payload.to_department_id),
+      payload.effective_date,
+    );
+  }
+
+  @Post('transfer/apply-due')
+  async applyDueTransfers() {
+    return this.accountsService.applyDueDepartmentTransfers();
   }
 }
 

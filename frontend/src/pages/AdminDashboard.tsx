@@ -14,7 +14,7 @@ import MainLayout from "../layout/MainLayout";
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
-import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount, importAccounts } from "../services/accounts.service";
+import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount, importAccounts, scheduleDepartmentTransfer, applyDueTransfers } from "../services/accounts.service";
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
 import { getProjects, deleteProject, createProject, type ProjectItem } from "../services/project.service";
@@ -49,6 +49,7 @@ export const AdminDashboard: React.FC = () => {
   const [projectDateTo, setProjectDateTo] = useState<string>('');
   const [deleteProjectDialog, setDeleteProjectDialog] = useState<ProjectItem | null>(null);
   const [openImportDialog, setOpenImportDialog] = useState(false);
+  const [openTransfer, setOpenTransfer] = useState<{ id: string; email: string } | null>(null);
   
   // Dashboard stats
   const [dashboardStats, setDashboardStats] = useState({
@@ -375,7 +376,7 @@ export const AdminDashboard: React.FC = () => {
 
           {tab === 'accounts' && (
             <>
-              <AccountsTable items={filteredAccounts as any} departments={departments} onReload={load} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} onBan={(u)=>setOpenBan(u)} onEnableConfirm={(u)=>setOpenEnableConfirm(u)} />
+              <AccountsTable items={filteredAccounts as any} departments={departments} onReload={load} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} onBan={(u)=>setOpenBan(u)} onEnableConfirm={(u)=>setOpenEnableConfirm(u)} onTransfer={(u)=> setOpenTransfer({ id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub, email: (u as any).email || '' })} />
               <Stack alignItems="center" mt={2}>
                 <Pagination count={Math.max(1, Math.ceil(accountsTotal / perpage))} page={page} onChange={(_, v)=> setPage(v)} />
               </Stack>
@@ -409,13 +410,14 @@ export const AdminDashboard: React.FC = () => {
             onClose={()=>setOpenImportDialog(false)} 
             onImport={handleImportAccounts} 
           />
+          <TransferDialog open={!!openTransfer} user={openTransfer} departments={departments} onClose={()=> setOpenTransfer(null)} onDone={()=>{ setOpenTransfer(null); load(); }} />
         </Box>
       </Box>
     </MainLayout>
   );
 };
 
-const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentResponse[]; onReload: ()=>void; onEdit: (u: AccountItem)=>void; onReset: (u: AccountItem)=>void; onPreview: (url: string|null)=>void; onBan: (u: AccountItem)=>void; onEnableConfirm: (u: AccountItem)=>void; }> = ({ items, departments, onReload, onEdit, onReset, onPreview, onBan, onEnableConfirm }) => {
+const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentResponse[]; onReload: ()=>void; onEdit: (u: AccountItem)=>void; onReset: (u: AccountItem)=>void; onPreview: (url: string|null)=>void; onBan: (u: AccountItem)=>void; onEnableConfirm: (u: AccountItem)=>void; onTransfer: (u: AccountItem)=>void; }> = ({ items, departments, onReload, onEdit, onReset, onPreview, onBan, onEnableConfirm, onTransfer }) => {
   const depNameById = (id?: number|string|null) => {
     const depId = typeof id === 'string' ? Number(id) : id;
     const found = departments.find(d=> d.id === depId);
@@ -423,7 +425,7 @@ const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentRes
   };
   return (
     <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 2 }}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: '64px 2fr 1.4fr 1fr 1fr 200px', bgcolor: '#f8fafc', px: 2, py: 1.5, fontWeight: 700 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '64px 2fr 1.4fr 1fr 1fr 240px', bgcolor: '#f8fafc', px: 2, py: 1.5, fontWeight: 700 }}>
         <Typography>Ảnh</Typography>
         <Typography>Email</Typography>
         <Typography>Họ tên</Typography>
@@ -434,7 +436,7 @@ const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentRes
       <Divider />
       <Stack>
         {items.map((u)=> (
-          <Box key={(u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).email} sx={{ display: 'grid', gridTemplateColumns: '64px 2fr 1.4fr 1fr 1fr 200px', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid #eef0f3' }}>
+          <Box key={(u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).email} sx={{ display: 'grid', gridTemplateColumns: '64px 2fr 1.4fr 1fr 1fr 240px', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid #eef0f3' }}>
             <Box>
               <Avatar src={(u as any).avatar_url || ''} sx={{ width: 36, height: 36, cursor: ((u as any).avatar_url ? 'pointer' : 'default') }} onClick={()=> onPreview((u as any).avatar_url || null)} />
             </Box>
@@ -442,17 +444,54 @@ const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentRes
             <Typography>{(u as any).full_name || (u as any).fullname || (u as any).name || (u as any).display_name || '-'}</Typography>
             <Typography>{(u as any).phone || (u as any).phone_number || '-'}</Typography>
             <Typography>{(u as any).department_name || depNameById((u as any).department_id)}</Typography>
-            <Box>
-              <Tooltip title="Sửa"><IconButton onClick={()=>onEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })}><EditIcon /></IconButton></Tooltip>
-              <Tooltip title="Đặt lại mật khẩu"><IconButton onClick={()=>onReset(u)}><KeyIcon /></IconButton></Tooltip>
-              <Tooltip title="Vô hiệu hóa"><IconButton onClick={()=>onBan(u)}><BlockIcon /></IconButton></Tooltip>
-              <Tooltip title="Kích hoạt"><IconButton onClick={()=>onEnableConfirm(u)}><CheckCircleOutlineIcon /></IconButton></Tooltip>
-              <Tooltip title="Xóa"><IconButton onClick={async()=>{ await deleteAccount(u.id); onReload(); }}><DeleteOutlineIcon /></IconButton></Tooltip>
+            <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 0.5, alignItems: 'center', justifyContent: 'flex-start', overflow: 'hidden' }}>
+              <Tooltip title="Sửa"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })}><EditIcon /></IconButton></Tooltip>
+              <Tooltip title="Đặt lại mật khẩu"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onReset(u)}><KeyIcon /></IconButton></Tooltip>
+              <Tooltip title="Vô hiệu hóa"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onBan(u)}><BlockIcon /></IconButton></Tooltip>
+              <Tooltip title="Kích hoạt"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onEnableConfirm(u)}><CheckCircleOutlineIcon /></IconButton></Tooltip>
+              <Tooltip title="Xóa"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={async()=>{ await deleteAccount(u.id); onReload(); }}><DeleteOutlineIcon /></IconButton></Tooltip>
+              <Tooltip title="Chuyển phòng (đặt ngày hiệu lực)"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=> onTransfer(u)}><FolderOutlinedIcon /></IconButton></Tooltip>
             </Box>
           </Box>
         ))}
       </Stack>
     </Paper>
+  );
+};
+
+const TransferDialog: React.FC<{ open: boolean; user: { id: string; email: string } | null; departments: DepartmentResponse[]; onClose: ()=>void; onDone: ()=>void; }> = ({ open, user, departments, onClose, onDone }) => {
+  const [toDep, setToDep] = useState<number | ''>('');
+  const [date, setDate] = useState<string>('');
+
+  useEffect(()=>{ if (open) { setToDep(''); setDate(''); } }, [open]);
+
+  const submit = async () => {
+    if (!user || !toDep || !date) return;
+    await scheduleDepartmentTransfer({ user_id: user.id, to_department_id: Number(toDep), effective_date: new Date(date).toISOString() });
+    try { await applyDueTransfers(); } catch {}
+    onDone();
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Chuyển phòng (đặt ngày hiệu lực)</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField label="Người dùng" value={user?.email || ''} disabled fullWidth />
+          <Select value={toDep} onChange={e=> setToDep(e.target.value as any)} displayEmpty fullWidth>
+            <MenuItem value="" disabled>Chọn phòng ban mới</MenuItem>
+            {departments.map(d=> (
+              <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+            ))}
+          </Select>
+          <TextField label="Ngày hiệu lực" type="datetime-local" value={date} onChange={e=> setDate(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Hủy</Button>
+        <Button variant="contained" onClick={submit} disabled={!toDep || !date}>Xác nhận</Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

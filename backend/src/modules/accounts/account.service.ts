@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { supabase, supabaseAdmin } from 'src/config/database.config';
+import { sendMail } from 'src/common/mailer';
 
 interface CreateAccountPayload {
   email: string;
@@ -21,6 +22,12 @@ interface UpdateAccountPayload {
 @Injectable()
 export class AccountsService {
   async list(page = 1, perPage = 10) {
+    // Apply any due department transfers before listing
+    try {
+      await this.applyDueDepartmentTransfers();
+    } catch (e) {
+      // non-blocking
+    }
     const from = (page - 1) * perPage;
     const to = from + perPage - 1;
 
@@ -121,6 +128,15 @@ export class AccountsService {
       .single();
 
     if (error) throw new InternalServerErrorException(error.message);
+    
+    // Send welcome email
+    try {
+      await this.sendWelcomeEmail(payload.email, payload.full_name || 'Nhân viên');
+    } catch (emailError) {
+      console.error('[AccountsService] Failed to send welcome email:', emailError);
+      // Don't throw error - account creation should succeed even if email fails
+    }
+    
     return data;
   }
 
@@ -220,6 +236,143 @@ export class AccountsService {
     }
 
     return results;
+  }
+
+  // ===== Department transfer (scheduled) =====
+  async scheduleDepartmentTransfer(userId: string, toDepartmentId: number, effectiveDateISO: string) {
+    // Fetch current department
+    const { data: current, error: curErr } = await supabaseAdmin
+      .from('users')
+      .select('department_id')
+      .eq('id', userId)
+      .single();
+    if (curErr) throw new InternalServerErrorException(curErr.message);
+    const fromDepartmentId = (current as any)?.department_id ?? null;
+
+    // Convert Vietnam time (UTC+7) to UTC for database storage
+    const vietnamDate = new Date(effectiveDateISO);
+    const utcDate = new Date(vietnamDate.getTime() + (7 * 60 * 60 * 1000)); // Add 7 hours to get UTC
+
+    // Insert schedule
+    const { data, error } = await supabaseAdmin
+      .from('department_transfers')
+      .insert({
+        user_id: userId,
+        from_department_id: fromDepartmentId,
+        to_department_id: toDepartmentId,
+        effective_date: utcDate.toISOString(),
+        status: 'scheduled',
+      } as any)
+      .select('*')
+      .single();
+    if (error) throw new InternalServerErrorException(error.message);
+
+    // If effective date already reached (Vietnam time), apply immediately
+    if (vietnamDate.getTime() <= Date.now()) {
+      await this.applyDueDepartmentTransfersForUser(userId);
+    }
+    return data;
+  }
+
+  async applyDueDepartmentTransfers(): Promise<{ applied: number }> {
+    // Get all scheduled transfers
+    const { data: allScheduled, error } = await supabaseAdmin
+      .from('department_transfers')
+      .select('id,user_id,to_department_id,effective_date,status')
+      .eq('status', 'scheduled');
+    if (error) throw new InternalServerErrorException(error.message);
+    const transfers = allScheduled || [];
+
+    let applied = 0;
+    const now = Date.now();
+    
+    for (const t of transfers as any[]) {
+      try {
+        // Convert UTC effective_date back to Vietnam time for comparison
+        const utcEffectiveDate = new Date(t.effective_date);
+        const vietnamEffectiveDate = new Date(utcEffectiveDate.getTime() - (7 * 60 * 60 * 1000)); // Subtract 7 hours to get Vietnam time
+        
+        // Check if Vietnam time has reached the effective date
+        if (vietnamEffectiveDate.getTime() <= now) {
+          await supabaseAdmin.from('users').update({ department_id: t.to_department_id }).eq('id', t.user_id);
+          await supabaseAdmin.from('department_transfers').update({ status: 'applied' }).eq('id', t.id);
+          applied++;
+        }
+      } catch (e) {
+        // continue next
+      }
+    }
+    return { applied };
+  }
+
+  private async applyDueDepartmentTransfersForUser(userId: string): Promise<void> {
+    const { data: allScheduled, error } = await supabaseAdmin
+      .from('department_transfers')
+      .select('id,user_id,to_department_id,effective_date,status')
+      .eq('status', 'scheduled')
+      .eq('user_id', userId);
+    if (error) throw new InternalServerErrorException(error.message);
+    const transfers = allScheduled || [];
+    
+    const now = Date.now();
+    for (const t of transfers as any[]) {
+      // Convert UTC effective_date back to Vietnam time for comparison
+      const utcEffectiveDate = new Date(t.effective_date);
+      const vietnamEffectiveDate = new Date(utcEffectiveDate.getTime() - (7 * 60 * 60 * 1000)); // Subtract 7 hours to get Vietnam time
+      
+      // Check if Vietnam time has reached the effective date
+      if (vietnamEffectiveDate.getTime() <= now) {
+        await supabaseAdmin.from('users').update({ department_id: t.to_department_id }).eq('id', t.user_id);
+        await supabaseAdmin.from('department_transfers').update({ status: 'applied' }).eq('id', t.id);
+      }
+    }
+  }
+
+  private async sendWelcomeEmail(email: string, fullName: string): Promise<void> {
+    await sendMail({
+      to: email,
+      subject: '[Zen8labs] Chào mừng bạn đến với công ty Zen8labs!',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2563eb; margin: 0;">Zen8labs</h1>
+            <h2 style="color: #1f2937; margin: 10px 0;">Chào mừng bạn đến với công ty!</h2>
+          </div>
+          
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 16px; color: #374151;">
+              Xin chào <strong>${fullName}</strong>,
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 16px; color: #374151;">
+              Chúng tôi rất vui mừng chào đón bạn gia nhập đội ngũ Zen8labs! Tài khoản của bạn đã được tạo thành công và bạn có thể bắt đầu sử dụng hệ thống Happy Friday ngay bây giờ.
+            </p>
+          </div>
+
+          <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #1e40af; margin: 0 0 15px 0;">Thông tin tài khoản</h3>
+            <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 5px 0; color: #374151;"><strong>Trạng thái:</strong> Đã kích hoạt</p>
+            <p style="margin: 5px 0; color: #374151;"><strong>Hệ thống:</strong> Happy Friday</p>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="http://localhost:5173/login" 
+               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+              Đăng nhập ngay
+            </a>
+          </div>
+
+          <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với bộ phận IT hoặc quản lý trực tiếp.
+            </p>
+            <p style="color: #6b7280; font-size: 14px; margin: 10px 0 0 0;">
+              Chúc bạn có những trải nghiệm tuyệt vời tại Zen8labs!
+            </p>
+          </div>
+        </div>
+      `
+    });
   }
 }
 

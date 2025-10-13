@@ -106,4 +106,26 @@ export const importAccounts = async (accounts: CreateAccountRequest[]): Promise<
   return res.data;
 };
 
+export const scheduleDepartmentTransfer = async (payload: { user_id: string; to_department_id: number; effective_date: string; }) => {
+  const token = localStorage.getItem("accessToken");
+  const res = await axios.post(`${BaseURl}${ACCOUNTS}/transfer/schedule`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data;
+};
+
+export const applyDueTransfers = async () => {
+  const token = localStorage.getItem("accessToken");
+  const res = await axios.post(`${BaseURl}${ACCOUNTS}/transfer/apply-due`, {}, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data as { applied: number };
+};
+
 
