@@ -106,6 +106,11 @@ export class AccountsController {
   async remove(@Param('id') id: string) {
     return this.accountsService.remove(id);
   }
+
+  @Post('import')
+  async importAccounts(@Body() payload: { accounts: CreateAccountDto[] }) {
+    return this.accountsService.importAccounts(payload.accounts);
+  }
 }
 
 

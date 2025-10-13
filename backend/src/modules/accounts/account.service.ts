@@ -201,6 +201,26 @@ export class AccountsService {
     if (error) throw new InternalServerErrorException(error.message);
     return { message: 'Password reset successfully' };
   }
+
+  async importAccounts(accounts: CreateAccountPayload[]) {
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as string[]
+    };
+
+    for (const account of accounts) {
+      try {
+        await this.create(account);
+        results.success++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`${account.email}: ${error.message}`);
+      }
+    }
+
+    return results;
+  }
 }
 
 

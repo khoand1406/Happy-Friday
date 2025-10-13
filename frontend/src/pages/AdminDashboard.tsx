@@ -14,11 +14,12 @@ import MainLayout from "../layout/MainLayout";
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
-import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount } from "../services/accounts.service";
+import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount, importAccounts } from "../services/accounts.service";
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
 import { getProjects, deleteProject, createProject, type ProjectItem } from "../services/project.service";
 import { DashboardStats } from "../components/DashboardStats";
+import ImportAccountsDialog from "../components/ImportAccountsDialog";
 
 type TabKey = 'dashboard' | 'accounts' | 'projects';
 
@@ -47,6 +48,7 @@ export const AdminDashboard: React.FC = () => {
   const [projectDateFrom, setProjectDateFrom] = useState<string>('');
   const [projectDateTo, setProjectDateTo] = useState<string>('');
   const [deleteProjectDialog, setDeleteProjectDialog] = useState<ProjectItem | null>(null);
+  const [openImportDialog, setOpenImportDialog] = useState(false);
   
   // Dashboard stats
   const [dashboardStats, setDashboardStats] = useState({
@@ -133,6 +135,16 @@ export const AdminDashboard: React.FC = () => {
       await loadProjects(); // Reload projects list
     } catch (error) {
       console.error('Error deleting project:', error);
+    }
+  };
+
+  const handleImportAccounts = async (accounts: any[]) => {
+    try {
+      await importAccounts(accounts);
+      await load(); // Reload accounts list
+    } catch (error) {
+      console.error('Error importing accounts:', error);
+      throw error;
     }
   };
 
@@ -273,9 +285,14 @@ export const AdminDashboard: React.FC = () => {
               {tab === 'dashboard' ? 'Dashboard' : tab === 'accounts' ? 'Quản lý tài khoản' : 'Quản lý dự án'}
             </Typography>
           {tab === 'accounts' && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={()=>setOpenCreate(true)} sx={{ borderRadius: 2 }}>
-              Thêm tài khoản
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" onClick={()=>setOpenImportDialog(true)} sx={{ borderRadius: 2 }}>
+                Import CSV
+              </Button>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={()=>setOpenCreate(true)} sx={{ borderRadius: 2 }}>
+                Thêm tài khoản
+              </Button>
+            </Stack>
           )}
           {tab === 'projects' && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={()=>setOpenCreateProject(true)} sx={{ borderRadius: 2 }}>
@@ -387,6 +404,11 @@ export const AdminDashboard: React.FC = () => {
           <EnableConfirmDialog item={openEnableConfirm} onClose={()=>setOpenEnableConfirm(null)} onDone={()=>{setOpenEnableConfirm(null); load();}} />
           <ImagePreviewDialog url={previewImage} onClose={()=>setPreviewImage(null)} />
           <DeleteProjectDialog item={deleteProjectDialog} onClose={()=>setDeleteProjectDialog(null)} onDelete={handleDeleteProject} />
+          <ImportAccountsDialog 
+            open={openImportDialog} 
+            onClose={()=>setOpenImportDialog(false)} 
+            onImport={handleImportAccounts} 
+          />
         </Box>
       </Box>
     </MainLayout>

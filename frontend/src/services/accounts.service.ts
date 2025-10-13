@@ -91,4 +91,19 @@ export const deleteAccount = async (id: string): Promise<any> => {
   return res.data;
 };
 
+export const importAccounts = async (accounts: CreateAccountRequest[]): Promise<{
+  success: number;
+  failed: number;
+  errors: string[];
+}> => {
+  const token = localStorage.getItem("accessToken");
+  const res = await axios.post(`${BaseURl}${ACCOUNTS}/import`, { accounts }, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data;
+};
+
 

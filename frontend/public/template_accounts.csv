@@ -1,0 +1,6 @@
+email,full_name,phone,department_id,role_id,password
+nguyen.van.a@example.com,Nguyễn Văn A,0123456789,1,2,password123
+tran.thi.b@example.com,Trần Thị B,0987654321,2,2,password456
+le.van.c@example.com,Lê Văn C,0369852147,1,3,password789
+pham.thi.d@example.com,Phạm Thị D,0741258963,3,2,password101
+hoang.van.e@example.com,Hoàng Văn E,0852147963,2,3,password202

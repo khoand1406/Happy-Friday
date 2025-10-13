@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { supabaseAdmin } from 'src/config/database.config';
+import { sendMail } from 'src/common/mailer';
 
 interface ListFilter {
   status?: string;
@@ -251,6 +252,46 @@ export class ProjectsService {
       .single();
 
     if (error) throw new InternalServerErrorException(error.message);
+    
+    // Lấy thông tin dự án và email user để gửi thông báo
+    try {
+      const [{ data: project }, authList] = await Promise.all([
+        supabaseAdmin.from('projects').select('id,name,description,status,start_date,end_date').eq('id', projectId).single(),
+        (supabaseAdmin as any).auth.admin.listUsers()
+      ]);
+
+      const authUsers = (authList?.data?.users || authList?.users) as any[] | undefined;
+      const target = (authUsers || []).find((u: any) => u?.id === userId);
+      const email = target?.email;
+
+      if (email) {
+        const startDate = project?.start_date ? new Date(project.start_date).toLocaleDateString() : undefined;
+        const endDate = project?.end_date ? new Date(project.end_date).toLocaleDateString() : undefined;
+        const dateStr = startDate && endDate ? `Thời gian: ${startDate} - ${endDate}` : '';
+
+        await sendMail({
+          to: email,
+          subject: `[Happy Friday] Bạn đã được thêm vào dự án ${project?.name || ''}`,
+          html: `
+            <div style="font-family: system-ui, Arial, sans-serif;">
+              <h2>Chào bạn,</h2>
+              <p>Bạn vừa được thêm vào dự án <b>${project?.name || ''}</b> với vai trò <b>${projectRole}</b>.</p>
+              <p>${project?.description || ''}</p>
+              <p>${dateStr}</p>
+              <p>Truy cập hệ thống để xem chi tiết.</p>
+              <hr/>
+              <small>Đây là email tự động, vui lòng không trả lời.</small>
+            </div>
+          `,
+          text: `Ban da duoc them vao du an ${project?.name || ''} voi vai tro ${projectRole}. ${project?.description || ''}`,
+        });
+      } else {
+        console.warn('[ProjectsService] Could not resolve email for user:', userId);
+      }
+    } catch (mailErr) {
+      console.warn('[ProjectsService] Send mail failed (non-blocking):', mailErr);
+    }
+
     return data;
   }
 
