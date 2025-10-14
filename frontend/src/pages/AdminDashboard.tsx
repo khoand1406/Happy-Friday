@@ -69,6 +69,8 @@ export const AdminDashboard: React.FC = () => {
   // Department bar chart data (labels aligned with values)
   const [deptBarLabels, setDeptBarLabels] = useState<string[]>([]);
   const [deptBarValues, setDeptBarValues] = useState<number[]>([]);
+  // Donut chart data for project status distribution
+  const [donutData, setDonutData] = useState<{ label: string; value: number }[]>([]);
 
   const load = async () => {
     const data = await listAccounts(page, perpage);
@@ -107,6 +109,7 @@ export const AdminDashboard: React.FC = () => {
       // Active: coi là hoạt động nếu không bị disabled
       const activeMembers = allAccounts.filter((acc: any) => acc.is_disabled === false || acc.is_disabled === undefined).length;
       
+      // Re-compute totals from grouped statuses to avoid any accidental duplicates
       const totalProjects = allProjects.length;
       const activeProjects = allProjects.filter(p => p.status === 'PROGRESSING').length;
       const completedProjects = allProjects.filter(p => p.status === 'COMPLETED').length;
@@ -122,15 +125,35 @@ export const AdminDashboard: React.FC = () => {
         p.start_date && new Date(p.start_date) > oneWeekAgo
       ).length;
       
+      // Build donut data from ALL projects (not just current tab list)
+      const statusGroups: Record<string, number> = {};
+      allProjects.forEach(p => {
+        const key = (p.status || 'UNKNOWN');
+        statusGroups[key] = (statusGroups[key] || 0) + 1;
+      });
+      const donut = Object.entries(statusGroups).map(([label, value]) => ({ label, value }));
+      // Ensure a fixed order for readability
+      const statusOrder = ['IN COMMING', 'PROGRESSING', 'COMPLETED'];
+      donut.sort((a, b) => {
+        const ia = statusOrder.indexOf(a.label);
+        const ib = statusOrder.indexOf(b.label);
+        if (ia === -1 && ib === -1) return a.label.localeCompare(b.label);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      });
+      const totalFromGroups = donut.reduce((s, d) => s + d.value, 0);
+
       setDashboardStats({
         totalMembers,
         activeMembers,
-        totalProjects,
+        totalProjects: totalFromGroups || totalProjects,
         activeProjects,
         completedProjects,
         newMembersThisWeek,
         newProjectsThisWeek
       });
+      setDonutData(donut);
 
       // Build department bar data from ALL accounts
       const labelSet = new Set<string>();
@@ -415,11 +438,7 @@ export const AdminDashboard: React.FC = () => {
               barLabels={deptBarLabels}
               barValues={deptBarValues}
               // Donut: phân phối trạng thái dự án
-              donutData={(() => {
-                const groups: Record<string, number> = {};
-                projects.forEach(p => { groups[p.status] = (groups[p.status] || 0) + 1; });
-                return Object.entries(groups).map(([label, value]) => ({ label, value }));
-              })()}
+            donutData={donutData}
             />
           )}
 

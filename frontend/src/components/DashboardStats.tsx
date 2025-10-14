@@ -39,11 +39,11 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, salesData
     <Paper sx={{ p: 3, flex: 1, borderRadius: 3, boxShadow: '0 6px 24px rgba(0,0,0,0.06)' }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, color }}>{value}</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 700, color, fontSize: '1.6rem' }}>{value}</Typography>
           <Stack direction="row" spacing={0.5} alignItems="baseline">
-            <Typography variant="caption" color="text.secondary">{label}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem' }}>{label}</Typography>
             {sub && (
-              <Typography variant="caption" color="text.secondary">{sub}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem' }}>{sub}</Typography>
             )}
           </Stack>
         </Box>
@@ -61,8 +61,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, salesData
         {kpiCard('Tổng thành viên', stats.totalMembers, '#5b7cfa', PeopleAltOutlined, 'so với tháng trước')}
         {kpiCard('Thành viên hoạt động', stats.activeMembers, '#22c55e', CheckCircleOutline)}
         <Paper sx={{ p: 3, flex: 1, minWidth: 260, borderRadius: 3, boxShadow: '0 6px 24px rgba(0,0,0,0.06)' }}>
-          <Typography variant="caption" color="text.secondary">Tiến độ công việc</Typography>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>{progress}%</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem' }}>Tiến độ công việc</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, fontSize: '1.6rem' }}>{progress}%</Typography>
           <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 999 }} />
         </Paper>
         {kpiCard('Tổng dự án', stats.totalProjects, '#f59e0b', FolderOutlined)}
@@ -117,15 +117,23 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, salesData
             {(() => {
               const size = 180; const stroke = 20; const r = (size - stroke) / 2; const c = 2 * Math.PI * r;
               const total = donut.reduce((s, x) => s + (x.value || 0), 0) || 1;
+              // Fixed color mapping by label for consistency
+              const colorByLabel: Record<string,string> = {
+                'IN COMMING': '#6366f1',
+                'PROGRESSING': '#f59e0b',
+                'COMPLETED': '#10b981'
+              };
+              const fallbackColors = ['#6366f1','#f59e0b','#10b981','#ef4444','#06b6d4'];
               const seg = donut.map(x => ((x.value / total) * c));
-              const colors = ['#6366f1','#f59e0b','#10b981','#ef4444','#06b6d4'];
               let offset = 0;
               return (
                 <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
                   <circle cx={size/2} cy={size/2} r={r} stroke="#eef2ff" strokeWidth={stroke} fill="none" />
                   {seg.map((len, i) => {
+                    const label = donut[i]?.label || '';
+                    const strokeColor = colorByLabel[label] || fallbackColors[i % fallbackColors.length];
                     const circle = (
-                      <circle key={i} cx={size/2} cy={size/2} r={r} stroke={colors[i % colors.length]} strokeWidth={stroke}
+                      <circle key={i} cx={size/2} cy={size/2} r={r} stroke={strokeColor} strokeWidth={stroke}
                         strokeDasharray={`${len} ${c-len}`} strokeDashoffset={-offset} fill="none" strokeLinecap="round" />
                     );
                     offset += len; return circle;
@@ -135,12 +143,28 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, salesData
             })()}
           </Box>
           <Stack direction="row" justifyContent="space-around" sx={{ mt: 2, flexWrap: 'wrap', rowGap: 1 }}>
-            {donut.map((d, i) => (
-              <Stack key={i} alignItems="center">
-                <Typography variant="caption">{d.label}</Typography>
-                <Typography variant="caption" color="text.secondary">{d.value}{typeof d.value === 'number' && d.value <= 100 ? '%' : ''}</Typography>
-              </Stack>
-            ))}
+            {(() => {
+              const total = donut.reduce((s, x) => s + (x.value || 0), 0) || 1;
+              const colorByLabel: Record<string,string> = {
+                'IN COMMING': '#6366f1',
+                'PROGRESSING': '#f59e0b',
+                'COMPLETED': '#10b981'
+              };
+              const fallbackColors = ['#6366f1','#f59e0b','#10b981','#ef4444','#06b6d4'];
+              return donut.map((d, i) => {
+                const percent = Math.round(((d.value || 0) / total) * 100);
+                const color = colorByLabel[d.label] || fallbackColors[i % fallbackColors.length];
+                return (
+                  <Stack key={i} alignItems="center" sx={{ minWidth: 96 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color }} />
+                      <Typography variant="caption">{d.label}</Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">{percent}% ({d.value})</Typography>
+                  </Stack>
+                );
+              });
+            })()}
           </Stack>
         </Paper>
       </Stack>
