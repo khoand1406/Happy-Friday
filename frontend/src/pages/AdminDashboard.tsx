@@ -37,6 +37,11 @@ export const AdminDashboard: React.FC = () => {
   const [openBan, setOpenBan] = useState<null | AccountItem>(null);
   const [openEnableConfirm, setOpenEnableConfirm] = useState<null | AccountItem>(null);
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
+  const [roles] = useState([
+    { id: 1, name: 'Admin' },
+    { id: 2, name: 'User' },
+    { id: 3, name: 'Manager' }
+  ]);
   const [accountSearch, setAccountSearch] = useState<string>('');
   const [accountStatus, setAccountStatus] = useState<string>('');
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -141,8 +146,9 @@ export const AdminDashboard: React.FC = () => {
 
   const handleImportAccounts = async (accounts: any[]) => {
     try {
-      await importAccounts(accounts);
+      const result = await importAccounts(accounts);
       await load(); // Reload accounts list
+      return result; // Trả về response từ backend
     } catch (error) {
       console.error('Error importing accounts:', error);
       throw error;
@@ -408,7 +414,9 @@ export const AdminDashboard: React.FC = () => {
           <ImportAccountsDialog 
             open={openImportDialog} 
             onClose={()=>setOpenImportDialog(false)} 
-            onImport={handleImportAccounts} 
+            onImport={handleImportAccounts}
+            departments={departments}
+            roles={roles}
           />
           <TransferDialog open={!!openTransfer} user={openTransfer} departments={departments} onClose={()=> setOpenTransfer(null)} onDone={()=>{ setOpenTransfer(null); load(); }} />
         </Box>

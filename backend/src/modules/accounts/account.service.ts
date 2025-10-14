@@ -108,7 +108,16 @@ export class AccountsService {
     });
 
     if (adminErr) {
-      throw new BadRequestException(adminErr.message);
+      // Chuyển đổi thông báo lỗi từ Supabase sang tiếng Việt
+      let errorMessage = adminErr.message;
+      if (errorMessage.includes('A user with this email address has already been registered')) {
+        errorMessage = 'Email này đã được đăng ký trong hệ thống';
+      } else if (errorMessage.includes('Invalid email address')) {
+        errorMessage = 'Địa chỉ email không hợp lệ';
+      } else if (errorMessage.includes('Password should be at least')) {
+        errorMessage = 'Mật khẩu phải có ít nhất 6 ký tự';
+      }
+      throw new BadRequestException(errorMessage);
     }
     const userId: string | undefined = created?.user?.id;
     if (!userId) {
