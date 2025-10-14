@@ -66,6 +66,9 @@ export const AdminDashboard: React.FC = () => {
     newMembersThisWeek: 0,
     newProjectsThisWeek: 0
   });
+  // Department bar chart data (labels aligned with values)
+  const [deptBarLabels, setDeptBarLabels] = useState<string[]>([]);
+  const [deptBarValues, setDeptBarValues] = useState<number[]>([]);
 
   const load = async () => {
     const data = await listAccounts(page, perpage);
@@ -101,7 +104,8 @@ export const AdminDashboard: React.FC = () => {
       
       // Calculate stats
       const totalMembers = allAccounts.length;
-      const activeMembers = allAccounts.filter((acc: any) => acc.status === 'active' || acc.status === 'enabled').length;
+      // Active: coi là hoạt động nếu không bị disabled
+      const activeMembers = allAccounts.filter((acc: any) => acc.is_disabled === false || acc.is_disabled === undefined).length;
       
       const totalProjects = allProjects.length;
       const activeProjects = allProjects.filter(p => p.status === 'PROGRESSING').length;
@@ -127,6 +131,20 @@ export const AdminDashboard: React.FC = () => {
         newMembersThisWeek,
         newProjectsThisWeek
       });
+
+      // Build department bar data from ALL accounts
+      const labelSet = new Set<string>();
+      departments.forEach(d => labelSet.add(d.name));
+      allAccounts.forEach((acc: any) => labelSet.add(acc.department_name || 'Khác'));
+      const labels = Array.from(labelSet);
+      const countsMap: Record<string, number> = {};
+      labels.forEach(l => { countsMap[l] = 0; });
+      allAccounts.forEach((acc: any) => {
+        const name = acc.department_name || 'Khác';
+        countsMap[name] = (countsMap[name] || 0) + 1;
+      });
+      setDeptBarLabels(labels);
+      setDeptBarValues(labels.map(l => countsMap[l] || 0));
     } catch (e) {
       console.error('Failed to load dashboard stats:', e);
     }
@@ -390,7 +408,19 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {tab === 'dashboard' && (
-            <DashboardStats stats={dashboardStats} />
+            <DashboardStats
+              stats={dashboardStats}
+              // Bar chart: phân bổ số lượng thành viên theo phòng ban
+              barTitle="Phân bổ thành viên theo phòng ban"
+              barLabels={deptBarLabels}
+              barValues={deptBarValues}
+              // Donut: phân phối trạng thái dự án
+              donutData={(() => {
+                const groups: Record<string, number> = {};
+                projects.forEach(p => { groups[p.status] = (groups[p.status] || 0) + 1; });
+                return Object.entries(groups).map(([label, value]) => ({ label, value }));
+              })()}
+            />
           )}
 
           {tab === 'projects' && (
