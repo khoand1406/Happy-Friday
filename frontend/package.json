@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node -e \"require('fs').copyFileSync('static-web-app.json', 'dist/static-web-app.json')\"",
+    "build": "tsc -b && vite build && node -e \"require('fs').copyFileSync('staticwebapp.config.json', 'dist/staticwebapp.config.json')\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },
