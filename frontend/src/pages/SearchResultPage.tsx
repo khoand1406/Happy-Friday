@@ -4,10 +4,10 @@ import {
   Typography,
   Card,
   CardContent,
-  CircularProgress,
   Grid,
   Button,
   Divider,
+  Skeleton,
 } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import { getSearchResult } from "../services/search.service";
@@ -48,7 +48,6 @@ export default function SearchPage() {
     fetchResults();
   }, [query]);
 
- 
   const grouped = results.reduce((acc, item) => {
     if (!acc[item.type]) acc[item.type] = [];
     acc[item.type].push(item);
@@ -68,12 +67,45 @@ export default function SearchPage() {
     }));
   };
 
-  if (loading)
-    return (
-      <Box display="flex" justifyContent="center" mt={10}>
-        <CircularProgress />
-      </Box>
-    );
+  const renderSkeletons = () => (
+    <Grid container spacing={3}>
+      {["project", "event", "user"].map((type) => (
+        <Grid size={{ xs: 12, md: 4 }} key={type}>
+          <Box
+            sx={{
+              backgroundColor: "#fff",
+              borderRadius: 3,
+              boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
+              p: 2,
+              height: "100%",
+            }}
+          >
+            <Skeleton variant="text" width="60%" height={28} />
+            <Divider sx={{ my: 2 }} />
+            {[...Array(5)].map((_, i) => (
+              <Card
+                key={i}
+                sx={{
+                  mb: 2,
+                  borderRadius: 2,
+                  boxShadow: "none",
+                  border: "1px solid #e5e7eb",
+                }}
+              >
+                <CardContent>
+                  <Skeleton variant="text" width="80%" height={20} />
+                  <Skeleton variant="text" width="95%" height={16} />
+                  <Skeleton variant="text" width="70%" height={16} />
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        </Grid>
+      ))}
+    </Grid>
+  );
+
+  if (loading) return renderSkeletons();
 
   if (!results.length)
     return (
@@ -88,7 +120,7 @@ export default function SearchPage() {
     <MainLayout>
       <Box>
         <Typography variant="h5" fontWeight={600} mb={3}>
-          Search result for  “{query}”
+          Search result for “{query}”
         </Typography>
 
         <Grid container spacing={3}>
