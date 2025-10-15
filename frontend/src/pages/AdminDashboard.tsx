@@ -37,6 +37,11 @@ export const AdminDashboard: React.FC = () => {
   const [openBan, setOpenBan] = useState<null | AccountItem>(null);
   const [openEnableConfirm, setOpenEnableConfirm] = useState<null | AccountItem>(null);
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
+  const [roles] = useState([
+    { id: 1, name: 'Admin' },
+    { id: 2, name: 'User' },
+    { id: 3, name: 'Manager' }
+  ]);
   const [accountSearch, setAccountSearch] = useState<string>('');
   const [accountStatus, setAccountStatus] = useState<string>('');
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -61,6 +66,11 @@ export const AdminDashboard: React.FC = () => {
     newMembersThisWeek: 0,
     newProjectsThisWeek: 0
   });
+  // Department bar chart data (labels aligned with values)
+  const [deptBarLabels, setDeptBarLabels] = useState<string[]>([]);
+  const [deptBarValues, setDeptBarValues] = useState<number[]>([]);
+  // Donut chart data for project status distribution
+  const [donutData, setDonutData] = useState<{ label: string; value: number }[]>([]);
 
   const load = async () => {
     const data = await listAccounts(page, perpage);
@@ -96,8 +106,10 @@ export const AdminDashboard: React.FC = () => {
       
       // Calculate stats
       const totalMembers = allAccounts.length;
-      const activeMembers = allAccounts.filter((acc: any) => acc.status === 'active' || acc.status === 'enabled').length;
+      // Active: coi là hoạt động nếu không bị disabled
+      const activeMembers = allAccounts.filter((acc: any) => acc.is_disabled === false || acc.is_disabled === undefined).length;
       
+      // Re-compute totals from grouped statuses to avoid any accidental duplicates
       const totalProjects = allProjects.length;
       const activeProjects = allProjects.filter(p => p.status === 'PROGRESSING').length;
       const completedProjects = allProjects.filter(p => p.status === 'COMPLETED').length;
@@ -113,15 +125,49 @@ export const AdminDashboard: React.FC = () => {
         p.start_date && new Date(p.start_date) > oneWeekAgo
       ).length;
       
+      // Build donut data from ALL projects (not just current tab list)
+      const statusGroups: Record<string, number> = {};
+      allProjects.forEach(p => {
+        const key = (p.status || 'UNKNOWN');
+        statusGroups[key] = (statusGroups[key] || 0) + 1;
+      });
+      const donut = Object.entries(statusGroups).map(([label, value]) => ({ label, value }));
+      // Ensure a fixed order for readability
+      const statusOrder = ['IN COMMING', 'PROGRESSING', 'COMPLETED'];
+      donut.sort((a, b) => {
+        const ia = statusOrder.indexOf(a.label);
+        const ib = statusOrder.indexOf(b.label);
+        if (ia === -1 && ib === -1) return a.label.localeCompare(b.label);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      });
+      const totalFromGroups = donut.reduce((s, d) => s + d.value, 0);
+
       setDashboardStats({
         totalMembers,
         activeMembers,
-        totalProjects,
+        totalProjects: totalFromGroups || totalProjects,
         activeProjects,
         completedProjects,
         newMembersThisWeek,
         newProjectsThisWeek
       });
+      setDonutData(donut);
+
+      // Build department bar data from ALL accounts
+      const labelSet = new Set<string>();
+      departments.forEach(d => labelSet.add(d.name));
+      allAccounts.forEach((acc: any) => labelSet.add(acc.department_name || 'Khác'));
+      const labels = Array.from(labelSet);
+      const countsMap: Record<string, number> = {};
+      labels.forEach(l => { countsMap[l] = 0; });
+      allAccounts.forEach((acc: any) => {
+        const name = acc.department_name || 'Khác';
+        countsMap[name] = (countsMap[name] || 0) + 1;
+      });
+      setDeptBarLabels(labels);
+      setDeptBarValues(labels.map(l => countsMap[l] || 0));
     } catch (e) {
       console.error('Failed to load dashboard stats:', e);
     }
@@ -141,8 +187,9 @@ export const AdminDashboard: React.FC = () => {
 
   const handleImportAccounts = async (accounts: any[]) => {
     try {
-      await importAccounts(accounts);
+      const result = await importAccounts(accounts);
       await load(); // Reload accounts list
+      return result; // Trả về response từ backend
     } catch (error) {
       console.error('Error importing accounts:', error);
       throw error;
@@ -384,7 +431,15 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {tab === 'dashboard' && (
-            <DashboardStats stats={dashboardStats} />
+            <DashboardStats
+              stats={dashboardStats}
+              // Bar chart: phân bổ số lượng thành viên theo phòng ban
+              barTitle="Phân bổ thành viên theo phòng ban"
+              barLabels={deptBarLabels}
+              barValues={deptBarValues}
+              // Donut: phân phối trạng thái dự án
+            donutData={donutData}
+            />
           )}
 
           {tab === 'projects' && (
@@ -408,7 +463,9 @@ export const AdminDashboard: React.FC = () => {
           <ImportAccountsDialog 
             open={openImportDialog} 
             onClose={()=>setOpenImportDialog(false)} 
-            onImport={handleImportAccounts} 
+            onImport={handleImportAccounts}
+            departments={departments}
+            roles={roles}
           />
           <TransferDialog open={!!openTransfer} user={openTransfer} departments={departments} onClose={()=> setOpenTransfer(null)} onDone={()=>{ setOpenTransfer(null); load(); }} />
         </Box>

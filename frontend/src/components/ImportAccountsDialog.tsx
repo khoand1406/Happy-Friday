@@ -32,7 +32,13 @@ import {
 interface ImportAccountsDialogProps {
   open: boolean;
   onClose: () => void;
-  onImport: (accounts: any[]) => Promise<void>;
+  onImport: (accounts: any[]) => Promise<{
+    success: number;
+    failed: number;
+    errors: string[];
+  }>;
+  departments: Array<{ id: number; name: string }>;
+  roles: Array<{ id: number; name: string }>;
 }
 
 interface ParsedAccount {
@@ -49,7 +55,9 @@ interface ParsedAccount {
 const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
   open,
   onClose,
-  onImport
+  onImport,
+  departments,
+  roles
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [parsedAccounts, setParsedAccounts] = useState<ParsedAccount[]>([]);
@@ -62,6 +70,17 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
   } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper functions để convert ID thành tên
+  const getDepartmentName = (id: number) => {
+    const dept = departments.find(d => d.id === id);
+    return dept ? dept.name : `ID: ${id}`;
+  };
+
+  const getRoleName = (id: number) => {
+    const role = roles.find(r => r.id === id);
+    return role ? role.name : `ID: ${id}`;
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -182,16 +201,9 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
 
     setImporting(true);
     try {
-      await onImport(validAccounts);
+      const result = await onImport(validAccounts);
       
-      const result = {
-        success: validAccounts.length,
-        failed: parsedAccounts.length - validAccounts.length,
-        errors: parsedAccounts.filter(acc => acc.status === 'invalid').map(acc => 
-          `${acc.email}: ${acc.errors.join(', ')}`
-        )
-      };
-      
+      // Sử dụng response từ backend thay vì tự tạo
       setImportResult(result);
     } catch (error) {
       console.error('Import error:', error);
@@ -330,8 +342,8 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
                         <TableCell>{account.email}</TableCell>
                         <TableCell>{account.full_name}</TableCell>
                         <TableCell>{account.phone}</TableCell>
-                        <TableCell>{account.department_id}</TableCell>
-                        <TableCell>{account.role_id}</TableCell>
+                        <TableCell>{getDepartmentName(account.department_id)}</TableCell>
+                        <TableCell>{getRoleName(account.role_id)}</TableCell>
                         <TableCell>
                           <Chip
                             icon={account.status === 'valid' ? <CheckCircleOutlined /> : <ErrorOutlined />}
