@@ -36,6 +36,7 @@ import {
 import { getProjectDetail, postProjectUpdate, updateProject, deleteProject, removeProjectMember, removeProjectUpdate, updateProjectUpdate, type ProjectDetailResponse } from "../services/project.service";
 import ApiHelper from "../helper/ApiHelper";
 import MainLayout from "../layout/MainLayout";
+import { ToastContainer, toast } from 'react-toastify';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -164,8 +165,10 @@ export default function AdminProjectDetail() {
       setNewUpdateContent("");
       setAddingUpdate(false);
       await fetchProjectDetail();
+      toast.success('Update added');
     } catch (error) {
       console.error("Error adding update:", error);
+      toast.error('Failed to add update');
     }
   };
 
@@ -176,8 +179,10 @@ export default function AdminProjectDetail() {
       await updateProject(id, editForm);
       setEditDialogOpen(false);
       await fetchProjectDetail();
+      toast.success('Project updated');
     } catch (error) {
       console.error("Error updating project:", error);
+      toast.error('Failed to update project');
     }
   };
 
@@ -188,8 +193,10 @@ export default function AdminProjectDetail() {
       await deleteProject(id);
       setDeleteDialogOpen(false);
       navigate('/Admin/Dashboard');
+      toast.success('Project deleted');
     } catch (error) {
       console.error("Error deleting project:", error);
+      toast.error('Failed to delete project');
     }
   };
 
@@ -206,8 +213,10 @@ export default function AdminProjectDetail() {
       setAddMemberDialogOpen(false);
       setAddMemberForm({ user_id: '', project_role: '' });
       await fetchProjectDetail(); // Reload project detail
+      toast.success('Member added');
     } catch (error) {
       console.error("Error adding member:", error);
+      toast.error('Failed to add member');
     }
   };
 
@@ -235,8 +244,10 @@ export default function AdminProjectDetail() {
       setMemberToDelete(null);
       // Reload project detail to refresh members list
       await fetchProjectDetail();
+      toast.success('Member removed');
     } catch (error) {
       console.error('Error removing member:', error);
+      toast.error('Failed to remove member');
     }
   };
 
@@ -255,8 +266,10 @@ export default function AdminProjectDetail() {
       setUpdateToDelete(null);
       // Reload project detail to refresh updates list
       await fetchProjectDetail();
+      toast.success('Update deleted');
     } catch (error) {
       console.error('Error removing update:', error);
+      toast.error('Failed to delete update');
     }
   };
 
@@ -276,8 +289,10 @@ export default function AdminProjectDetail() {
       setEditUpdateForm({ title: '', content: '' });
       // Reload project detail to refresh updates list
       await fetchProjectDetail();
+      toast.success('Update saved');
     } catch (error) {
       console.error('Error editing update:', error);
+      toast.error('Failed to save update');
     }
   };
 
@@ -319,7 +334,7 @@ export default function AdminProjectDetail() {
         <Paper elevation={0} sx={{ width: 220, p: 2, borderRight: '1px solid #eef0f3', height: 'calc(100vh - 112px)' }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>Admin</Typography>
           <Stack spacing={1}>
-            <Tooltip title="Quay lại Dashboard">
+            <Tooltip title="Back to Dashboard">
               <IconButton 
                 onClick={() => navigate('/Admin/Dashboard')}
                 sx={{ 
@@ -332,7 +347,7 @@ export default function AdminProjectDetail() {
                 }}
               >
                 <ArrowBack sx={{ mr: 1 }} />
-                <Typography variant="body2">Quay lại Dashboard</Typography>
+                <Typography variant="body2">Back to Dashboard</Typography>
               </IconButton>
             </Tooltip>
           </Stack>
@@ -358,27 +373,27 @@ export default function AdminProjectDetail() {
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
                 <Box flex={1}>
                   <Typography variant="h6" gutterBottom>
-                    Thông tin dự án
+                    Project info
                   </Typography>
                   <Typography variant="body1" paragraph>
                     {project.description}
                   </Typography>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Ngày bắt đầu:</strong> {project.start_date ? formatDate(project.start_date) : 'Chưa xác định'}
+                      <strong>Start date:</strong> {project.start_date ? formatDate(project.start_date) : 'N/A'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Ngày kết thúc:</strong> {project.end_date ? formatDate(project.end_date) : 'Chưa xác định'}
+                      <strong>End date:</strong> {project.end_date ? formatDate(project.end_date) : 'N/A'}
                     </Typography>
                   </Stack>
                 </Box>
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  <Tooltip title="Chỉnh sửa dự án">
+                  <Tooltip title="Edit project">
                     <IconButton color="primary" size="small" onClick={() => setEditDialogOpen(true)}>
                       <Edit />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Xóa dự án">
+                  <Tooltip title="Delete project">
                     <IconButton color="error" size="small" onClick={() => setDeleteDialogOpen(true)}>
                       <Delete />
                     </IconButton>
@@ -393,13 +408,13 @@ export default function AdminProjectDetail() {
             <Tabs value={tabValue} onChange={handleTabChange} aria-label="admin project tabs">
               <Tab 
                 icon={<Person />} 
-                label={`Thành viên (${members.length})`} 
+                label={`Members (${members.length})`} 
                 id="admin-project-tab-0"
                 aria-controls="admin-project-tabpanel-0"
               />
               <Tab 
                 icon={<Update />} 
-                label={`Tabfeed (${updates.length})`} 
+                label={`Updates (${updates.length})`} 
                 id="admin-project-tab-1"
                 aria-controls="admin-project-tabpanel-1"
               />
@@ -409,7 +424,7 @@ export default function AdminProjectDetail() {
             <TabPanel value={tabValue} index={0}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6">
-                  Danh sách thành viên
+                  Members
                 </Typography>
                 <Button
                   variant="contained"
@@ -417,7 +432,7 @@ export default function AdminProjectDetail() {
                   onClick={() => setAddMemberDialogOpen(true)}
                   size="small"
                 >
-                  Thêm thành viên
+                  Add member
                 </Button>
               </Stack>
               <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
@@ -445,7 +460,7 @@ export default function AdminProjectDetail() {
                               sx={{ mt: 0.5 }}
                             />
                           </Box>
-                          <Tooltip title="Xóa thành viên">
+                          <Tooltip title="Remove member">
                             <IconButton 
                               size="small" 
                               color="error"
@@ -462,7 +477,7 @@ export default function AdminProjectDetail() {
                 {members.length === 0 && (
                   <Box sx={{ width: '100%', textAlign: 'center' }}>
                     <Typography color="text.secondary">
-                      Chưa có thành viên nào trong dự án
+                      No members in this project yet
                     </Typography>
                   </Box>
                 )}
@@ -473,7 +488,7 @@ export default function AdminProjectDetail() {
             <TabPanel value={tabValue} index={1}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6">
-                  Tabfeed dự án
+                  Project updates
                 </Typography>
                 <Button
                   variant="contained"
@@ -481,7 +496,7 @@ export default function AdminProjectDetail() {
                   onClick={() => setAddingUpdate(true)}
                   size="small"
                 >
-                  Thêm cập nhật
+                  Add update
                 </Button>
               </Stack>
 
@@ -490,18 +505,18 @@ export default function AdminProjectDetail() {
                 <Card sx={{ mb: 3 }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Thêm cập nhật mới
+                      New update
                     </Typography>
                     <Stack spacing={2}>
                       <TextField
-                        label="Tiêu đề"
+                        label="Title"
                         value={newUpdateTitle}
                         onChange={(e) => setNewUpdateTitle(e.target.value)}
                         fullWidth
                         size="small"
                       />
                       <TextField
-                        label="Nội dung"
+                        label="Content"
                         value={newUpdateContent}
                         onChange={(e) => setNewUpdateContent(e.target.value)}
                         multiline
@@ -516,7 +531,7 @@ export default function AdminProjectDetail() {
                           disabled={!newUpdateTitle.trim() || !newUpdateContent.trim()}
                           size="small"
                         >
-                          Đăng
+                          Post
                         </Button>
                         <Button
                           variant="outlined"
@@ -527,7 +542,7 @@ export default function AdminProjectDetail() {
                           }}
                           size="small"
                         >
-                          Hủy
+                          Cancel
                         </Button>
                       </Stack>
                     </Stack>
@@ -553,7 +568,7 @@ export default function AdminProjectDetail() {
                           </Typography>
                         </Box>
                         <Stack direction="row" spacing={1}>
-                          <Tooltip title="Sửa cập nhật">
+                          <Tooltip title="Edit update">
                             <IconButton 
                               size="small" 
                               color="primary"
@@ -562,7 +577,7 @@ export default function AdminProjectDetail() {
                               <Update />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Xóa cập nhật">
+                          <Tooltip title="Delete update">
                             <IconButton 
                               size="small" 
                               color="error"
@@ -578,7 +593,7 @@ export default function AdminProjectDetail() {
                 ))}
                 {updates.length === 0 && (
                   <Typography color="text.secondary" textAlign="center">
-                    Chưa có cập nhật nào
+                    No updates yet
                   </Typography>
                 )}
               </Stack>
@@ -589,18 +604,18 @@ export default function AdminProjectDetail() {
 
       {/* Edit Project Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Chỉnh sửa dự án</DialogTitle>
+        <DialogTitle>Edit project</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
-              label="Tên dự án"
+              label="Project name"
               value={editForm.name}
               onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
               fullWidth
               size="small"
             />
             <TextField
-              label="Mô tả"
+              label="Description"
               value={editForm.description}
               onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
               multiline
@@ -609,11 +624,11 @@ export default function AdminProjectDetail() {
               size="small"
             />
             <FormControl fullWidth size="small">
-              <InputLabel>Trạng thái</InputLabel>
+              <InputLabel>Status</InputLabel>
               <Select
                 value={editForm.status}
                 onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                label="Trạng thái"
+                label="Status"
               >
                 <MenuItem value="IN COMMING">IN COMMING</MenuItem>
                 <MenuItem value="PROGRESSING">PROGRESSING</MenuItem>
@@ -621,7 +636,7 @@ export default function AdminProjectDetail() {
               </Select>
             </FormControl>
             <TextField
-              label="Ngày bắt đầu"
+              label="Start date"
               type="date"
               value={editForm.start_date}
               onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
@@ -630,7 +645,7 @@ export default function AdminProjectDetail() {
               InputLabelProps={{ shrink: true }}
             />
             <TextField
-              label="Ngày kết thúc"
+              label="End date"
               type="date"
               value={editForm.end_date}
               onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
@@ -641,50 +656,50 @@ export default function AdminProjectDetail() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Hủy</Button>
-          <Button variant="contained" onClick={handleEditProject}>Lưu</Button>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleEditProject}>Save</Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Project Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Xóa dự án</DialogTitle>
+        <DialogTitle>Delete project</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Bạn có chắc chắn muốn xóa dự án "{project?.name}"? Hành động này không thể hoàn tác.
+            Are you sure you want to delete "{project?.name}"? This action cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Hủy</Button>
-          <Button variant="contained" color="error" onClick={handleDeleteProject}>Xóa</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteProject}>Delete</Button>
         </DialogActions>
       </Dialog>
 
       {/* Add Member Dialog */}
       <Dialog open={addMemberDialogOpen} onClose={() => setAddMemberDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Thêm thành viên vào dự án</DialogTitle>
+        <DialogTitle>Add member to project</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <FormControl fullWidth size="small">
-              <InputLabel>Chọn thành viên</InputLabel>
+              <InputLabel>Select member</InputLabel>
               <Select
                 value={addMemberForm.user_id}
                 onChange={(e) => setAddMemberForm({ ...addMemberForm, user_id: e.target.value })}
-                label="Chọn thành viên"
+                label="Select member"
               >
                 {availableUsers.map((user) => (
                   <MenuItem key={user.id} value={user.id}>
-                    {user.name} - {user.email || 'Không có email'}
+                    {user.name} - {user.email || 'No email'}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
             <FormControl fullWidth size="small">
-              <InputLabel>Vai trò trong dự án</InputLabel>
+              <InputLabel>Project role</InputLabel>
               <Select
                 value={addMemberForm.project_role}
                 onChange={(e) => setAddMemberForm({ ...addMemberForm, project_role: e.target.value })}
-                label="Vai trò trong dự án"
+                label="Project role"
               >
                 <MenuItem value="Project Manager">Project Manager</MenuItem>
                 <MenuItem value="Developer">Developer</MenuItem>
@@ -697,49 +712,47 @@ export default function AdminProjectDetail() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddMemberDialogOpen(false)}>Hủy</Button>
+          <Button onClick={() => setAddMemberDialogOpen(false)}>Cancel</Button>
           <Button 
             variant="contained" 
             onClick={handleAddMember}
             disabled={!addMemberForm.user_id || !addMemberForm.project_role}
           >
-            Thêm
+            Add
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Member Dialog */}
       <Dialog open={deleteMemberDialogOpen} onClose={() => setDeleteMemberDialogOpen(false)}>
-        <DialogTitle>Xác nhận xóa thành viên</DialogTitle>
+        <DialogTitle>Remove member</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Bạn có chắc chắn muốn xóa thành viên <strong>{memberToDelete?.name}</strong> khỏi dự án này không?
+            Are you sure you want to remove <strong>{memberToDelete?.name}</strong> from this project?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteMemberDialogOpen(false)}>
-            Hủy
-          </Button>
+          <Button onClick={() => setDeleteMemberDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleDeleteMember} color="error" variant="contained">
-            Xóa
+            Remove
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Update Dialog */}
       <Dialog open={editUpdateDialogOpen} onClose={() => setEditUpdateDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Sửa cập nhật</DialogTitle>
+        <DialogTitle>Edit update</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
-              label="Tiêu đề"
+              label="Title"
               value={editUpdateForm.title}
               onChange={(e) => setEditUpdateForm({ ...editUpdateForm, title: e.target.value })}
               fullWidth
               required
             />
             <TextField
-              label="Nội dung"
+              label="Content"
               value={editUpdateForm.content}
               onChange={(e) => setEditUpdateForm({ ...editUpdateForm, content: e.target.value })}
               fullWidth
@@ -750,36 +763,33 @@ export default function AdminProjectDetail() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditUpdateDialogOpen(false)}>
-            Hủy
-          </Button>
+          <Button onClick={() => setEditUpdateDialogOpen(false)}>Cancel</Button>
           <Button 
             onClick={handleEditUpdate} 
             variant="contained"
             disabled={!editUpdateForm.title.trim() || !editUpdateForm.content.trim()}
           >
-            Lưu
+            Save
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Update Dialog */}
       <Dialog open={deleteUpdateDialogOpen} onClose={() => setDeleteUpdateDialogOpen(false)}>
-        <DialogTitle>Xác nhận xóa cập nhật</DialogTitle>
+        <DialogTitle>Delete update</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Bạn có chắc chắn muốn xóa cập nhật <strong>"{updateToDelete?.title}"</strong> không?
+            Are you sure you want to delete update <strong>"{updateToDelete?.title}"</strong>?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteUpdateDialogOpen(false)}>
-            Hủy
-          </Button>
+          <Button onClick={() => setDeleteUpdateDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleDeleteUpdate} color="error" variant="contained">
-            Xóa
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
     </MainLayout>
   );
 }

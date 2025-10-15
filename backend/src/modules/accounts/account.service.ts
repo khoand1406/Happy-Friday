@@ -108,14 +108,14 @@ export class AccountsService {
     });
 
     if (adminErr) {
-      // Chuyển đổi thông báo lỗi từ Supabase sang tiếng Việt
+      // Normalize Supabase messages to concise English
       let errorMessage = adminErr.message;
       if (errorMessage.includes('A user with this email address has already been registered')) {
-        errorMessage = 'Email này đã được đăng ký trong hệ thống';
+        errorMessage = 'This email has already been registered';
       } else if (errorMessage.includes('Invalid email address')) {
-        errorMessage = 'Địa chỉ email không hợp lệ';
+        errorMessage = 'Invalid email address';
       } else if (errorMessage.includes('Password should be at least')) {
-        errorMessage = 'Mật khẩu phải có ít nhất 6 ký tự';
+        errorMessage = 'Password must be at least 6 characters';
       }
       throw new BadRequestException(errorMessage);
     }
@@ -140,7 +140,7 @@ export class AccountsService {
     
     // Send welcome email
     try {
-      await this.sendWelcomeEmail(payload.email, payload.full_name || 'Nhân viên');
+      await this.sendWelcomeEmail(payload.email, payload.full_name || 'Colleague');
     } catch (emailError) {
       console.error('[AccountsService] Failed to send welcome email:', emailError);
       // Don't throw error - account creation should succeed even if email fails
@@ -340,44 +340,36 @@ export class AccountsService {
   private async sendWelcomeEmail(email: string, fullName: string): Promise<void> {
     await sendMail({
       to: email,
-      subject: '[Zen8labs] Chào mừng bạn đến với công ty Zen8labs!',
+      subject: '[Zen8labs] Welcome to Zen8labs!',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #2563eb; margin: 0;">Zen8labs</h1>
-            <h2 style="color: #1f2937; margin: 10px 0;">Chào mừng bạn đến với công ty!</h2>
+            <h2 style="color: #1f2937; margin: 10px 0;">Welcome aboard!</h2>
           </div>
           
           <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <p style="margin: 0; font-size: 16px; color: #374151;">
-              Xin chào <strong>${fullName}</strong>,
-            </p>
-            <p style="margin: 10px 0 0 0; font-size: 16px; color: #374151;">
-              Chúng tôi rất vui mừng chào đón bạn gia nhập đội ngũ Zen8labs! Tài khoản của bạn đã được tạo thành công và bạn có thể bắt đầu sử dụng hệ thống Happy Friday ngay bây giờ.
-            </p>
+            <p style="margin: 0; font-size: 16px; color: #374151;">Hi <strong>${fullName}</strong>,</p>
+            <p style="margin: 10px 0 0 0; font-size: 16px; color: #374151;">We're excited to have you at Zen8labs! Your account has been created successfully. You can start using the Happy Friday system now.</p>
           </div>
 
           <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="color: #1e40af; margin: 0 0 15px 0;">Thông tin tài khoản</h3>
+            <h3 style="color: #1e40af; margin: 0 0 15px 0;">Account info</h3>
             <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${email}</p>
-            <p style="margin: 5px 0; color: #374151;"><strong>Trạng thái:</strong> Đã kích hoạt</p>
-            <p style="margin: 5px 0; color: #374151;"><strong>Hệ thống:</strong> Happy Friday</p>
+            <p style="margin: 5px 0; color: #374151;"><strong>Status:</strong> Activated</p>
+            <p style="margin: 5px 0; color: #374151;"><strong>System:</strong> Happy Friday</p>
           </div>
 
           <div style="text-align: center; margin: 30px 0;">
             <a href="http://localhost:5173/login" 
                style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
-              Đăng nhập ngay
+              Sign in
             </a>
           </div>
 
           <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
-            <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với bộ phận IT hoặc quản lý trực tiếp.
-            </p>
-            <p style="color: #6b7280; font-size: 14px; margin: 10px 0 0 0;">
-              Chúc bạn có những trải nghiệm tuyệt vời tại Zen8labs!
-            </p>
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">If you have any questions, please contact IT or your line manager.</p>
+            <p style="color: #6b7280; font-size: 14px; margin: 10px 0 0 0;">We wish you great experiences at Zen8labs!</p>
           </div>
         </div>
       `

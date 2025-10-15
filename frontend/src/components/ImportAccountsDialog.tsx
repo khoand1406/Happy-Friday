@@ -71,7 +71,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper functions để convert ID thành tên
+  // Helper functions to convert ID to name
   const getDepartmentName = (id: number) => {
     const dept = departments.find(d => d.id === id);
     return dept ? dept.name : `ID: ${id}`;
@@ -88,7 +88,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
       setFile(selectedFile);
       parseCSV(selectedFile);
     } else {
-      alert('Vui lòng chọn file CSV hợp lệ');
+      alert('Please select a valid CSV file');
     }
   };
 
@@ -99,7 +99,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
       const lines = text.split('\n').filter(line => line.trim());
       
       if (lines.length < 2) {
-        alert('File CSV phải có ít nhất 1 dòng dữ liệu (không tính header)');
+        alert('CSV must contain at least one data row (excluding header)');
         setIsProcessing(false);
         return;
       }
@@ -107,10 +107,10 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
       const requiredHeaders = ['email', 'full_name', 'phone', 'department_id', 'role_id'];
       
-      // Kiểm tra headers
+      // Validate headers
       const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
       if (missingHeaders.length > 0) {
-        alert(`Thiếu các cột bắt buộc: ${missingHeaders.join(', ')}`);
+        alert(`Missing required columns: ${missingHeaders.join(', ')}`);
         setIsProcessing(false);
         return;
       }
@@ -129,7 +129,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
           errors: []
         };
 
-        // Parse từng field
+        // Parse each field
         headers.forEach((header, index) => {
           const value = values[index] || '';
           
@@ -137,28 +137,28 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
             case 'email':
               account.email = value;
               if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                account.errors.push('Email không hợp lệ');
+                account.errors.push('Invalid email');
                 account.status = 'invalid';
               }
               break;
             case 'full_name':
               account.full_name = value;
               if (!value) {
-                account.errors.push('Họ tên không được để trống');
+                account.errors.push('Full name is required');
                 account.status = 'invalid';
               }
               break;
             case 'phone':
               account.phone = value;
               if (!value) {
-                account.errors.push('Số điện thoại không được để trống');
+                account.errors.push('Phone is required');
                 account.status = 'invalid';
               }
               break;
             case 'department_id':
               const deptId = parseInt(value);
               if (isNaN(deptId) || deptId <= 0) {
-                account.errors.push('ID phòng ban không hợp lệ');
+                account.errors.push('Invalid department_id');
                 account.status = 'invalid';
               } else {
                 account.department_id = deptId;
@@ -167,7 +167,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
             case 'role_id':
               const roleId = parseInt(value);
               if (isNaN(roleId) || roleId <= 0) {
-                account.errors.push('ID vai trò không hợp lệ');
+                account.errors.push('Invalid role_id');
                 account.status = 'invalid';
               } else {
                 account.role_id = roleId;
@@ -185,7 +185,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
       setParsedAccounts(accounts);
     } catch (error) {
       console.error('Error parsing CSV:', error);
-      alert('Lỗi khi đọc file CSV');
+      alert('Error reading CSV file');
     } finally {
       setIsProcessing(false);
     }
@@ -195,7 +195,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
     const validAccounts = parsedAccounts.filter(acc => acc.status === 'valid');
     
     if (validAccounts.length === 0) {
-      alert('Không có tài khoản hợp lệ để import');
+      alert('No valid accounts to import');
       return;
     }
 
@@ -203,11 +203,24 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
     try {
       const result = await onImport(validAccounts);
       
-      // Sử dụng response từ backend thay vì tự tạo
-      setImportResult(result);
+      // Normalize any legacy Vietnamese backend messages to English (defensive)
+      const viToEn = (msg: string) => {
+        return msg
+          .replace('Email này đã được đăng ký trong hệ thống', 'This email has already been registered')
+          .replace('Địa chỉ email không hợp lệ', 'Invalid email address')
+          .replace('Mật khẩu phải có ít nhất 6 ký tự', 'Password must be at least 6 characters');
+      };
+      const normalized = {
+        success: result.success,
+        failed: result.failed,
+        errors: (result.errors || []).map((e: string) => viToEn(e)),
+      };
+      
+      // Use response from backend (normalized)
+      setImportResult(normalized);
     } catch (error) {
       console.error('Import error:', error);
-      alert('Lỗi khi import tài khoản');
+      alert('Failed to import accounts');
     } finally {
       setImporting(false);
     }
@@ -221,7 +234,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
   };
 
   const downloadTemplate = () => {
-    // Tải file template từ public folder
+    // Download template from public folder
     const link = document.createElement('a');
     link.href = '/template_accounts.csv';
     link.download = 'template_accounts.csv';
@@ -235,7 +248,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
     <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
       <DialogTitle>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Import tài khoản từ CSV</Typography>
+          <Typography variant="h6">Import accounts from CSV</Typography>
           <IconButton onClick={handleClose}>
             <CloseOutlined />
           </IconButton>
@@ -247,7 +260,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
           {/* Template download */}
           <Box>
             <Typography variant="subtitle2" gutterBottom>
-              Tải template CSV:
+              CSV Template:
             </Typography>
             <Button
               variant="outlined"
@@ -255,14 +268,14 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
               onClick={downloadTemplate}
               size="small"
             >
-              Tải template
+              Download template
             </Button>
           </Box>
 
           {/* File upload */}
           <Box>
             <Typography variant="subtitle2" gutterBottom>
-              Chọn file CSV:
+              Choose CSV file:
             </Typography>
             <input
               ref={fileInputRef}
@@ -277,11 +290,11 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
               onClick={() => fileInputRef.current?.click()}
               disabled={isProcessing}
             >
-              Chọn file CSV
+              Select CSV file
             </Button>
             {file && (
               <Typography variant="body2" sx={{ mt: 1 }}>
-                File đã chọn: {file.name}
+                Selected file: {file.name}
               </Typography>
             )}
           </Box>
@@ -290,7 +303,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
           {isProcessing && (
             <Box>
               <Typography variant="body2" gutterBottom>
-                Đang xử lý file...
+                Processing file...
               </Typography>
               <LinearProgress />
             </Box>
@@ -300,12 +313,12 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
           {importResult && (
             <Alert severity={importResult.failed > 0 ? 'warning' : 'success'}>
               <Typography variant="subtitle2">
-                Import hoàn tất: {importResult.success} thành công, {importResult.failed} thất bại
+                Import finished: {importResult.success} success, {importResult.failed} failed
               </Typography>
               {importResult.errors.length > 0 && (
                 <Box sx={{ mt: 1 }}>
                   <Typography variant="body2" color="error">
-                    Lỗi chi tiết:
+                    Details:
                   </Typography>
                   {importResult.errors.map((error, index) => (
                     <Typography key={index} variant="caption" display="block">
@@ -321,19 +334,19 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
           {parsedAccounts.length > 0 && (
             <Box>
               <Typography variant="subtitle2" gutterBottom>
-                Xem trước dữ liệu ({parsedAccounts.length} tài khoản):
+                Preview ({parsedAccounts.length} accounts):
               </Typography>
               <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
                 <Table stickyHeader size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Email</TableCell>
-                      <TableCell>Họ tên</TableCell>
-                      <TableCell>SĐT</TableCell>
-                      <TableCell>Phòng ban</TableCell>
-                      <TableCell>Vai trò</TableCell>
-                      <TableCell>Trạng thái</TableCell>
-                      <TableCell>Lỗi</TableCell>
+                      <TableCell>Full name</TableCell>
+                      <TableCell>Phone</TableCell>
+                      <TableCell>Department</TableCell>
+                      <TableCell>Role</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Errors</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -347,7 +360,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
                         <TableCell>
                           <Chip
                             icon={account.status === 'valid' ? <CheckCircleOutlined /> : <ErrorOutlined />}
-                            label={account.status === 'valid' ? 'Hợp lệ' : 'Lỗi'}
+                            label={account.status === 'valid' ? 'Valid' : 'Error'}
                             color={account.status === 'valid' ? 'success' : 'error'}
                             size="small"
                           />
@@ -356,7 +369,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
                           {account.errors.length > 0 && (
                             <Tooltip title={account.errors.join(', ')}>
                               <Typography variant="caption" color="error">
-                                {account.errors.length} lỗi
+                                {account.errors.length} error(s)
                               </Typography>
                             </Tooltip>
                           )}
@@ -373,7 +386,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
 
       <DialogActions>
         <Button onClick={handleClose}>
-          {importResult ? 'Đóng' : 'Hủy'}
+          {importResult ? 'Close' : 'Cancel'}
         </Button>
         {!importResult && parsedAccounts.length > 0 && (
           <Button
@@ -381,7 +394,7 @@ const ImportAccountsDialog: React.FC<ImportAccountsDialogProps> = ({
             onClick={handleImport}
             disabled={importing || parsedAccounts.filter(acc => acc.status === 'valid').length === 0}
           >
-            {importing ? 'Đang import...' : 'Import tài khoản'}
+            {importing ? 'Importing...' : 'Import accounts'}
           </Button>
         )}
       </DialogActions>

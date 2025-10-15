@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, IconButton, MenuItem, Paper, Select, Stack, TextField, Tooltip, Typography, Pagination } from "@mui/material";
+import { Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, IconButton, MenuItem, Paper, Select, Stack, TextField, Tooltip, Typography, Pagination, Skeleton, FormControl, FormHelperText } from "@mui/material";
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -14,6 +14,7 @@ import MainLayout from "../layout/MainLayout";
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
+import { ToastContainer, toast } from 'react-toastify';
 import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount, importAccounts, scheduleDepartmentTransfer, applyDueTransfers } from "../services/accounts.service";
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
@@ -55,6 +56,9 @@ export const AdminDashboard: React.FC = () => {
   const [deleteProjectDialog, setDeleteProjectDialog] = useState<ProjectItem | null>(null);
   const [openImportDialog, setOpenImportDialog] = useState(false);
   const [openTransfer, setOpenTransfer] = useState<{ id: string; email: string } | null>(null);
+  const [deleteAccountDialog, setDeleteAccountDialog] = useState<AccountItem | null>(null);
+  const [loadingAccounts, setLoadingAccounts] = useState<boolean>(false);
+  const [loadingProjects, setLoadingProjects] = useState<boolean>(false);
   
   // Dashboard stats
   const [dashboardStats, setDashboardStats] = useState({
@@ -73,17 +77,23 @@ export const AdminDashboard: React.FC = () => {
   const [donutData, setDonutData] = useState<{ label: string; value: number }[]>([]);
 
   const load = async () => {
-    const data = await listAccounts(page, perpage);
-    const items = (data?.items ?? []) as any[];
-    const normalized = items.map((x: any) => ({
-      ...x,
-      id: x.id ?? x.profile_id ?? x.user_id ?? x.uid ?? x.UUID ?? x.sub ?? null,
-    }));
-    setAccounts(normalized);
-    setAccountsTotal(data?.total ?? normalized.length);
+    setLoadingAccounts(true);
+    try {
+      const data = await listAccounts(page, perpage);
+      const items = (data?.items ?? []) as any[];
+      const normalized = items.map((x: any) => ({
+        ...x,
+        id: x.id ?? x.profile_id ?? x.user_id ?? x.uid ?? x.UUID ?? x.sub ?? null,
+      }));
+      setAccounts(normalized);
+      setAccountsTotal(data?.total ?? normalized.length);
+    } finally {
+      setLoadingAccounts(false);
+    }
   };
 
   const loadProjects = async () => {
+    setLoadingProjects(true);
     try {
       const data = await getProjects({ page: projectPage, perpage: projectPerpage, status: projectStatus || undefined, search: projectSearch || undefined });
       const items = (data?.items ?? []) as ProjectItem[];
@@ -91,6 +101,8 @@ export const AdminDashboard: React.FC = () => {
       setProjectsTotal(data?.total ?? items.length);
     } catch (e) {
       console.error('Failed to load projects:', e);
+    } finally {
+      setLoadingProjects(false);
     }
   };
 
@@ -180,8 +192,10 @@ export const AdminDashboard: React.FC = () => {
       await deleteProject(deleteProjectDialog.id);
       setDeleteProjectDialog(null);
       await loadProjects(); // Reload projects list
+      toast.success('Project deleted');
     } catch (error) {
       console.error('Error deleting project:', error);
+      toast.error('Failed to delete project');
     }
   };
 
@@ -189,9 +203,11 @@ export const AdminDashboard: React.FC = () => {
     try {
       const result = await importAccounts(accounts);
       await load(); // Reload accounts list
+      toast.success(`Imported: ${result.success} success, ${result.failed} failed`);
       return result; // Trả về response từ backend
     } catch (error) {
       console.error('Error importing accounts:', error);
+      toast.error('Failed to import accounts');
       throw error;
     }
   };
@@ -297,11 +313,11 @@ export const AdminDashboard: React.FC = () => {
   }, [accounts, accountSearch, accountStatus, departments]);
 
   const chipLabel = useMemo(()=>{
-    if (accountSearch !== '' && accountStatus !== '') return 'Tìm kiếm & trạng thái';
-    if (accountSearch !== '') return `Tìm kiếm: "${accountSearch}"`;
-    if (accountStatus === 'disabled') return 'Trạng thái: Disabled';
-    if (accountStatus === 'enabled') return 'Trạng thái: Enabled';
-    return 'Tất cả';
+    if (accountSearch !== '' && accountStatus !== '') return 'Search & status';
+    if (accountSearch !== '') return `Search: "${accountSearch}"`;
+    if (accountStatus === 'disabled') return 'Status: Disabled';
+    if (accountStatus === 'enabled') return 'Status: Enabled';
+    return 'All';
   }, [accountSearch, accountStatus]);
 
   return (
@@ -317,11 +333,11 @@ export const AdminDashboard: React.FC = () => {
             </ListItemButton>
             <ListItemButton selected={tab==='accounts'} onClick={()=>setTab('accounts')} sx={{ borderRadius: 2 }}>
               <ListItemIcon><PeopleAltOutlinedIcon /></ListItemIcon>
-              <ListItemText primary="QL tài khoản" />
+              <ListItemText primary="Accounts" />
             </ListItemButton>
             <ListItemButton selected={tab==='projects'} onClick={()=>setTab('projects')} sx={{ borderRadius: 2 }}>
               <ListItemIcon><FolderOutlinedIcon /></ListItemIcon>
-              <ListItemText primary="QL dự án" />
+              <ListItemText primary="Projects" />
             </ListItemButton>
           </List>
         </Paper>
@@ -330,7 +346,7 @@ export const AdminDashboard: React.FC = () => {
         <Box sx={{ flex: 1 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {tab === 'dashboard' ? 'Dashboard' : tab === 'accounts' ? 'Quản lý tài khoản' : 'Quản lý dự án'}
+              {tab === 'dashboard' ? 'Dashboard' : tab === 'accounts' ? 'Account management' : 'Project management'}
             </Typography>
           {tab === 'accounts' && (
             <Stack direction="row" spacing={1}>
@@ -338,13 +354,13 @@ export const AdminDashboard: React.FC = () => {
                 Import CSV
               </Button>
               <Button variant="contained" startIcon={<AddIcon />} onClick={()=>setOpenCreate(true)} sx={{ borderRadius: 2 }}>
-                Thêm tài khoản
+                Add account
               </Button>
             </Stack>
           )}
           {tab === 'projects' && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={()=>setOpenCreateProject(true)} sx={{ borderRadius: 2 }}>
-              Thêm dự án
+              Add project
             </Button>
           )}
         </Stack>
@@ -353,7 +369,7 @@ export const AdminDashboard: React.FC = () => {
           <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
             <TextField 
               size="small" 
-              placeholder="Tìm kiếm tài khoản..." 
+              placeholder="Search accounts..." 
               value={accountSearch} 
               onChange={(e) => setAccountSearch(e.target.value)}
               sx={{ minWidth: 200 }}
@@ -365,7 +381,7 @@ export const AdminDashboard: React.FC = () => {
               displayEmpty
               sx={{ minWidth: 120 }}
             >
-              <MenuItem value="">Tất cả trạng thái</MenuItem>
+              <MenuItem value="">All statuses</MenuItem>
               <MenuItem value="enabled">Enabled</MenuItem>
               <MenuItem value="disabled">Disabled</MenuItem>
             </Select>
@@ -378,13 +394,13 @@ export const AdminDashboard: React.FC = () => {
             <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
               <TextField 
                 size="small" 
-                placeholder="Tìm kiếm" 
+                placeholder="Search" 
                 value={projectSearch} 
                 onChange={(e) => setProjectSearch(e.target.value)}
                 sx={{ minWidth: 200 }}
               />
               <DatePicker
-                label="Từ ngày"
+                label="From"
                 value={projectDateFrom ? new Date(projectDateFrom) : null}
                 onChange={(date) => setProjectDateFrom(date ? date.toISOString().split('T')[0] : '')}
                 slotProps={{
@@ -395,7 +411,7 @@ export const AdminDashboard: React.FC = () => {
                 }}
               />
               <DatePicker
-                label="Đến ngày"
+                label="To"
                 value={projectDateTo ? new Date(projectDateTo) : null}
                 onChange={(date) => setProjectDateTo(date ? date.toISOString().split('T')[0] : '')}
                 slotProps={{
@@ -412,7 +428,7 @@ export const AdminDashboard: React.FC = () => {
                 displayEmpty
                 sx={{ minWidth: 120 }}
               >
-                <MenuItem value="">Tất cả trạng thái</MenuItem>
+                <MenuItem value="">All statuses</MenuItem>
                 <MenuItem value="IN COMMING">IN COMMING</MenuItem>
                 <MenuItem value="PROGRESSING">PROGRESSING</MenuItem>
                 <MenuItem value="COMPLETED">COMPLETED</MenuItem>
@@ -423,10 +439,16 @@ export const AdminDashboard: React.FC = () => {
 
           {tab === 'accounts' && (
             <>
-              <AccountsTable items={filteredAccounts as any} departments={departments} onReload={load} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} onBan={(u)=>setOpenBan(u)} onEnableConfirm={(u)=>setOpenEnableConfirm(u)} onTransfer={(u)=> setOpenTransfer({ id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub, email: (u as any).email || '' })} />
-              <Stack alignItems="center" mt={2}>
-                <Pagination count={Math.max(1, Math.ceil(accountsTotal / perpage))} page={page} onChange={(_, v)=> setPage(v)} />
-              </Stack>
+              {loadingAccounts ? (
+                <AccountsSkeleton rows={5} />
+              ) : (
+                <>
+                  <AccountsTable items={filteredAccounts as any} departments={departments} onEdit={(u)=> setOpenEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })} onReset={setOpenReset} onPreview={setPreviewImage} onBan={(u)=>setOpenBan(u)} onEnableConfirm={(u)=>setOpenEnableConfirm(u)} onTransfer={(u)=> setOpenTransfer({ id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub, email: (u as any).email || '' })} onDelete={(u)=> setDeleteAccountDialog(u)} />
+                  <Stack alignItems="center" mt={2}>
+                    <Pagination count={Math.max(1, Math.ceil(accountsTotal / perpage))} page={page} onChange={(_, v)=> setPage(v)} />
+                  </Stack>
+                </>
+              )}
             </>
           )}
 
@@ -434,7 +456,7 @@ export const AdminDashboard: React.FC = () => {
             <DashboardStats
               stats={dashboardStats}
               // Bar chart: phân bổ số lượng thành viên theo phòng ban
-              barTitle="Phân bổ thành viên theo phòng ban"
+              barTitle="Members by department"
               barLabels={deptBarLabels}
               barValues={deptBarValues}
               // Donut: phân phối trạng thái dự án
@@ -444,20 +466,26 @@ export const AdminDashboard: React.FC = () => {
 
           {tab === 'projects' && (
             <>
-              <ProjectsTable items={filteredProjects} onReload={loadProjects} onDelete={setDeleteProjectDialog} />
-              <Stack alignItems="center" mt={2}>
-                <Pagination count={Math.max(1, Math.ceil(projectsTotal / projectPerpage))} page={projectPage} onChange={(_, v)=> setProjectPage(v)} />
-              </Stack>
+              {loadingProjects ? (
+                <ProjectsSkeleton rows={5} />
+              ) : (
+                <>
+                  <ProjectsTable items={filteredProjects} onReload={loadProjects} onDelete={setDeleteProjectDialog} />
+                  <Stack alignItems="center" mt={2}>
+                    <Pagination count={Math.max(1, Math.ceil(projectsTotal / projectPerpage))} page={projectPage} onChange={(_, v)=> setProjectPage(v)} />
+                  </Stack>
+                </>
+              )}
             </>
           )}
 
         <CreateProjectDialog open={openCreateProject} onClose={()=>setOpenCreateProject(false)} onCreated={() => { setOpenCreateProject(false); loadProjects(); }} />
 
-        <CreateDialog open={openCreate} onClose={()=>setOpenCreate(false)} onCreated={()=>{setOpenCreate(false); load();}} />
-        <EditDialog item={openEdit} onClose={()=>setOpenEdit(null)} onUpdated={()=>{setOpenEdit(null); load();}} />
-          <ResetDialog item={openReset} onClose={()=>setOpenReset(null)} onUpdated={()=>{setOpenReset(null);}} />
-          <BanDialog item={openBan} onClose={()=>setOpenBan(null)} onDone={()=>{setOpenBan(null); load();}} />
-          <EnableConfirmDialog item={openEnableConfirm} onClose={()=>setOpenEnableConfirm(null)} onDone={()=>{setOpenEnableConfirm(null); load();}} />
+        <CreateDialog open={openCreate} onClose={()=>setOpenCreate(false)} onCreated={()=>{setOpenCreate(false); load(); toast.success('Account created');}} />
+        <EditDialog item={openEdit} onClose={()=>setOpenEdit(null)} onUpdated={()=>{setOpenEdit(null); load(); toast.success('Account updated');}} />
+          <ResetDialog item={openReset} onClose={()=>setOpenReset(null)} onUpdated={()=>{setOpenReset(null); toast.success('Password reset');}} />
+          <BanDialog item={openBan} onClose={()=>setOpenBan(null)} onDone={()=>{setOpenBan(null); load(); toast.success('Account banned/disabled');}} />
+          <EnableConfirmDialog item={openEnableConfirm} onClose={()=>setOpenEnableConfirm(null)} onDone={()=>{setOpenEnableConfirm(null); load(); toast.success('Account enabled');}} />
           <ImagePreviewDialog url={previewImage} onClose={()=>setPreviewImage(null)} />
           <DeleteProjectDialog item={deleteProjectDialog} onClose={()=>setDeleteProjectDialog(null)} onDelete={handleDeleteProject} />
           <ImportAccountsDialog 
@@ -467,14 +495,16 @@ export const AdminDashboard: React.FC = () => {
             departments={departments}
             roles={roles}
           />
-          <TransferDialog open={!!openTransfer} user={openTransfer} departments={departments} onClose={()=> setOpenTransfer(null)} onDone={()=>{ setOpenTransfer(null); load(); }} />
+          <TransferDialog open={!!openTransfer} user={openTransfer} departments={departments} onClose={()=> setOpenTransfer(null)} onDone={()=>{ setOpenTransfer(null); load(); toast.success('Department transfer applied/scheduled'); }} />
+          <DeleteAccountDialog item={deleteAccountDialog} onClose={()=> setDeleteAccountDialog(null)} onDelete={async ()=> { if(deleteAccountDialog){ try{ await deleteAccount(deleteAccountDialog.id); toast.success('Account deleted'); } catch{ toast.error('Failed to delete account'); } finally { setDeleteAccountDialog(null); load(); } } }} />
         </Box>
       </Box>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
     </MainLayout>
   );
 };
 
-const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentResponse[]; onReload: ()=>void; onEdit: (u: AccountItem)=>void; onReset: (u: AccountItem)=>void; onPreview: (url: string|null)=>void; onBan: (u: AccountItem)=>void; onEnableConfirm: (u: AccountItem)=>void; onTransfer: (u: AccountItem)=>void; }> = ({ items, departments, onReload, onEdit, onReset, onPreview, onBan, onEnableConfirm, onTransfer }) => {
+const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentResponse[]; onEdit: (u: AccountItem)=>void; onReset: (u: AccountItem)=>void; onPreview: (url: string|null)=>void; onBan: (u: AccountItem)=>void; onEnableConfirm: (u: AccountItem)=>void; onTransfer: (u: AccountItem)=>void; onDelete: (u: AccountItem)=>void; }> = ({ items, departments, onEdit, onReset, onPreview, onBan, onEnableConfirm, onTransfer, onDelete }) => {
   const depNameById = (id?: number|string|null) => {
     const depId = typeof id === 'string' ? Number(id) : id;
     const found = departments.find(d=> d.id === depId);
@@ -483,12 +513,12 @@ const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentRes
   return (
     <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 2 }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: '64px 2fr 1.4fr 1fr 1fr 240px', bgcolor: '#f8fafc', px: 2, py: 1.5, fontWeight: 700 }}>
-        <Typography>Ảnh</Typography>
+        <Typography>Avatar</Typography>
         <Typography>Email</Typography>
-        <Typography>Họ tên</Typography>
-        <Typography>Số điện thoại</Typography>
-        <Typography>Phòng ban</Typography>
-        <Typography>Thao tác</Typography>
+        <Typography>Full name</Typography>
+        <Typography>Phone</Typography>
+        <Typography>Department</Typography>
+        <Typography>Actions</Typography>
       </Box>
       <Divider />
       <Stack>
@@ -502,12 +532,12 @@ const AccountsTable: React.FC<{ items: AccountItem[]; departments: DepartmentRes
             <Typography>{(u as any).phone || (u as any).phone_number || '-'}</Typography>
             <Typography>{(u as any).department_name || depNameById((u as any).department_id)}</Typography>
             <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 0.5, alignItems: 'center', justifyContent: 'flex-start', overflow: 'hidden' }}>
-              <Tooltip title="Sửa"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })}><EditIcon /></IconButton></Tooltip>
-              <Tooltip title="Đặt lại mật khẩu"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onReset(u)}><KeyIcon /></IconButton></Tooltip>
-              <Tooltip title="Vô hiệu hóa"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onBan(u)}><BlockIcon /></IconButton></Tooltip>
-              <Tooltip title="Kích hoạt"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onEnableConfirm(u)}><CheckCircleOutlineIcon /></IconButton></Tooltip>
-              <Tooltip title="Xóa"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={async()=>{ await deleteAccount(u.id); onReload(); }}><DeleteOutlineIcon /></IconButton></Tooltip>
-              <Tooltip title="Chuyển phòng (đặt ngày hiệu lực)"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=> onTransfer(u)}><FolderOutlinedIcon /></IconButton></Tooltip>
+              <Tooltip title="Edit"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onEdit({ ...(u as any), id: (u as any).id ?? (u as any).profile_id ?? (u as any).user_id ?? (u as any).uid ?? (u as any).UUID ?? (u as any).sub })}><EditIcon /></IconButton></Tooltip>
+              <Tooltip title="Reset password"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onReset(u)}><KeyIcon /></IconButton></Tooltip>
+              <Tooltip title="Disable"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onBan(u)}><BlockIcon /></IconButton></Tooltip>
+              <Tooltip title="Enable"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=>onEnableConfirm(u)}><CheckCircleOutlineIcon /></IconButton></Tooltip>
+              <Tooltip title="Delete"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=> onDelete(u)}><DeleteOutlineIcon /></IconButton></Tooltip>
+              <Tooltip title="Transfer department (schedule)"><IconButton size="small" sx={{ minWidth: 'auto', p: 0.75 }} onClick={()=> onTransfer(u)}><FolderOutlinedIcon /></IconButton></Tooltip>
             </Box>
           </Box>
         ))}
@@ -531,22 +561,22 @@ const TransferDialog: React.FC<{ open: boolean; user: { id: string; email: strin
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Chuyển phòng (đặt ngày hiệu lực)</DialogTitle>
+      <DialogTitle>Transfer department (schedule)</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField label="Người dùng" value={user?.email || ''} disabled fullWidth />
+          <TextField label="User" value={user?.email || ''} disabled fullWidth />
           <Select value={toDep} onChange={e=> setToDep(e.target.value as any)} displayEmpty fullWidth>
-            <MenuItem value="" disabled>Chọn phòng ban mới</MenuItem>
+            <MenuItem value="" disabled>Select new department</MenuItem>
             {departments.map(d=> (
               <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
             ))}
           </Select>
-          <TextField label="Ngày hiệu lực" type="datetime-local" value={date} onChange={e=> setDate(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+          <TextField label="Effective date" type="datetime-local" value={date} onChange={e=> setDate(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Hủy</Button>
-        <Button variant="contained" onClick={submit} disabled={!toDep || !date}>Xác nhận</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={submit} disabled={!toDep || !date}>Confirm</Button>
       </DialogActions>
     </Dialog>
   );
@@ -555,12 +585,12 @@ const TransferDialog: React.FC<{ open: boolean; user: { id: string; email: strin
 function ImagePreviewDialog({ url, onClose }: { url: string | null; onClose: ()=>void }){
   return (
     <Dialog open={!!url} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Ảnh đại diện</DialogTitle>
+      <DialogTitle>Avatar</DialogTitle>
       <DialogContent>
         {url ? <Box component="img" src={url} alt="avatar" sx={{ width: '100%', borderRadius: 1 }} /> : null}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Đóng</Button>
+        <Button onClick={onClose}>Close</Button>
       </DialogActions>
     </Dialog>
   );
@@ -571,10 +601,13 @@ const CreateDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreated: ()=>
   const [password, setPassword] = useState('');
   const [full_name, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role_id, setRole] = useState<number>(2);
+  // role_id bỏ khỏi UI; mặc định backend sẽ là User (role_id=2)
   const [department_id, setDepartment] = useState<string>('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [fullNameError, setFullNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [departmentError, setDepartmentError] = useState('');
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
 
   useEffect(()=>{
@@ -589,49 +622,65 @@ const CreateDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreated: ()=>
     let valid = true;
     setEmailError('');
     setPasswordError('');
+    setDepartmentError('');
+    setFullNameError('');
+    setPhoneError('');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError('Email không hợp lệ');
+      setEmailError('Invalid email');
       valid = false;
     }
     if (!password || password.length < 6) {
-      setPasswordError('Mật khẩu tối thiểu 6 ký tự');
+      setPasswordError('Password must be at least 6 characters');
+      valid = false;
+    }
+    if (!full_name || full_name.trim().length < 2) {
+      setFullNameError('Full name is required');
+      valid = false;
+    }
+    const phoneRegex = /^[0-9+\-()\s]{8,20}$/;
+    if (!phone || !phoneRegex.test(phone)) {
+      setPhoneError('Phone is required');
+      valid = false;
+    }
+    if (!department_id) {
+      setDepartmentError('Department is required');
       valid = false;
     }
     if (!valid) return;
 
     try {
-      await createAccount({ email, password, full_name, phone, role_id, department_id: department_id ? Number(department_id) : undefined });
+      await createAccount({ email, password, full_name, phone, department_id: department_id ? Number(department_id) : undefined });
       onCreated();
-      setEmail(''); setPassword(''); setFullName(''); setPhone(''); setRole(2); setDepartment('');
+      setEmail(''); setPassword(''); setFullName(''); setPhone(''); setDepartment('');
     } catch (e: any) {
-      setPasswordError(e?.message || 'Tạo tài khoản thất bại');
+      setPasswordError(e?.message || 'Failed to create account');
     }
   };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Thêm tài khoản</DialogTitle>
+      <DialogTitle>Add account</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField name="email" label="Email" value={email} onChange={e=>setEmail(e.target.value)} error={!!emailError} helperText={emailError} fullWidth />
-          <TextField label="Mật khẩu" type="password" value={password} onChange={e=>setPassword(e.target.value)} error={!!passwordError} helperText={passwordError} fullWidth />
-          <TextField label="Họ tên" value={full_name} onChange={e=>setFullName(e.target.value)} fullWidth />
-          <TextField label="Số điện thoại" value={phone} onChange={e=>setPhone(e.target.value)} fullWidth />
-          <Select value={role_id} onChange={e=>setRole(Number(e.target.value))} fullWidth>
-            <MenuItem value={1}>Admin</MenuItem>
-            <MenuItem value={2}>User</MenuItem>
-          </Select>
-          <Select value={department_id} onChange={e=>setDepartment(String(e.target.value))} displayEmpty fullWidth>
-            <MenuItem value=""><em>Chọn phòng ban</em></MenuItem>
-            {departments.map(d=> (
-              <MenuItem key={d.id} value={String(d.id)}>{d.name}</MenuItem>
-            ))}
-          </Select>
+          <TextField label="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} error={!!passwordError} helperText={passwordError} fullWidth />
+          <TextField label="Full name" value={full_name} onChange={e=>{ setFullName(e.target.value); setFullNameError(''); }} fullWidth error={!!fullNameError} helperText={fullNameError} />
+          <TextField label="Phone" value={phone} onChange={e=>{ setPhone(e.target.value); setPhoneError(''); }} fullWidth error={!!phoneError} helperText={phoneError} />
+          {/* Vai trò mặc định là User, không cần chọn */}
+          <FormControl fullWidth error={!!departmentError}>
+            <Select value={department_id} onChange={e=>{ setDepartment(String(e.target.value)); setDepartmentError(''); }} displayEmpty fullWidth>
+              <MenuItem value="" disabled><em>Select department</em></MenuItem>
+              {departments.map(d=> (
+                <MenuItem key={d.id} value={String(d.id)}>{d.name}</MenuItem>
+              ))}
+            </Select>
+            {departmentError && <FormHelperText>{departmentError}</FormHelperText>}
+          </FormControl>
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Hủy</Button>
-        <Button variant="contained" onClick={submit}>Tạo</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={submit}>Create</Button>
       </DialogActions>
     </Dialog>
   );
@@ -640,16 +689,18 @@ const CreateDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreated: ()=>
 const EditDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onUpdated: ()=>void; }> = ({ item, onClose, onUpdated }) => {
   const [full_name, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role_id, setRole] = useState<number>(2);
   const [department_id, setDepartment] = useState<string>('');
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
+  const [fullNameError, setFullNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [departmentError, setDepartmentError] = useState('');
 
   useEffect(()=>{
     if (item) {
       setFullName((item as any).full_name || (item as any).name || (item as any).display_name || '');
       setPhone((item as any).phone ?? '');
-      setRole((item as any).role_id ?? 2);
       setDepartment((item as any).department_id ? String((item as any).department_id) : '');
+      setFullNameError(''); setPhoneError(''); setDepartmentError('');
     }
   }, [item]);
 
@@ -670,32 +721,40 @@ const EditDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onUpda
       console.error('Missing user id on item:', item);
       return;
     }
-    await updateAccount(currId as string, { full_name, phone, role_id, department_id: department_id ? Number(department_id) : undefined });
+    // validations
+    let valid = true;
+    setFullNameError(''); setPhoneError(''); setDepartmentError('');
+    if (!full_name || full_name.trim().length < 2) { setFullNameError('Full name is required'); valid = false; }
+    const phoneRegex = /^[0-9+\-()\s]{8,20}$/;
+    if (!phone || !phoneRegex.test(phone)) { setPhoneError('Phone is required'); valid = false; }
+    if (!department_id) { setDepartmentError('Department is required'); valid = false; }
+    if (!valid) return;
+
+    await updateAccount(currId as string, { full_name, phone, department_id: Number(department_id) });
     onUpdated();
   };
 
   return (
     <Dialog open={!!item} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Cập nhật tài khoản</DialogTitle>
+      <DialogTitle>Update account</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField label="Họ tên" value={full_name} onChange={e=>setFullName(e.target.value)} fullWidth />
-          <TextField label="Số điện thoại" value={phone} onChange={e=>setPhone(e.target.value)} fullWidth />
-          <Select value={role_id} onChange={e=>setRole(Number(e.target.value))} fullWidth>
-            <MenuItem value={1}>Admin</MenuItem>
-            <MenuItem value={2}>User</MenuItem>
-          </Select>
-          <Select value={department_id} onChange={e=>setDepartment(String(e.target.value))} displayEmpty fullWidth>
-            <MenuItem value=""><em>Chọn phòng ban</em></MenuItem>
-            {departments.map(d=> (
-              <MenuItem key={d.id} value={String(d.id)}>{d.name}</MenuItem>
-            ))}
-          </Select>
+          <TextField label="Full name" value={full_name} onChange={e=>{ setFullName(e.target.value); setFullNameError(''); }} fullWidth error={!!fullNameError} helperText={fullNameError} />
+          <TextField label="Phone" value={phone} onChange={e=>{ setPhone(e.target.value); setPhoneError(''); }} fullWidth error={!!phoneError} helperText={phoneError} />
+          <FormControl fullWidth error={!!departmentError}>
+            <Select value={department_id} onChange={e=>{ setDepartment(String(e.target.value)); setDepartmentError(''); }} displayEmpty fullWidth>
+              <MenuItem value="" disabled><em>Select department</em></MenuItem>
+              {departments.map(d=> (
+                <MenuItem key={d.id} value={String(d.id)}>{d.name}</MenuItem>
+              ))}
+            </Select>
+            {departmentError && <FormHelperText>{departmentError}</FormHelperText>}
+          </FormControl>
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Hủy</Button>
-        <Button variant="contained" onClick={submit}>Lưu</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={submit}>Save</Button>
       </DialogActions>
     </Dialog>
   );
@@ -710,13 +769,13 @@ const ResetDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onUpd
   };
   return (
     <Dialog open={!!item} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Đặt lại mật khẩu</DialogTitle>
+      <DialogTitle>Reset password</DialogTitle>
       <DialogContent>
-        <TextField sx={{ mt: 2 }} label="Mật khẩu mới" type="password" fullWidth value={password} onChange={e=>setPassword(e.target.value)} />
+        <TextField sx={{ mt: 2 }} label="New password" type="password" fullWidth value={password} onChange={e=>setPassword(e.target.value)} />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Hủy</Button>
-        <Button variant="contained" onClick={submit}>Xác nhận</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={submit}>Confirm</Button>
       </DialogActions>
     </Dialog>
   );
@@ -742,21 +801,21 @@ const BanDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onDone:
 
   return (
     <Dialog open={!!item} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Vô hiệu hóa tài khoản</DialogTitle>
+      <DialogTitle>Disable account</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <Select value={mode} onChange={e=>setMode(e.target.value as any)} fullWidth>
-            <MenuItem value={'ban'}>Cấm theo thời gian</MenuItem>
-            <MenuItem value={'disable'}>Vô hiệu hóa dài hạn</MenuItem>
+            <MenuItem value={'ban'}>Temporary ban</MenuItem>
+            <MenuItem value={'disable'}>Long-term disable</MenuItem>
           </Select>
           {mode === 'ban' && (
-            <TextField type="number" label="Số giờ cấm" value={hours} onChange={e=>setHours(Number(e.target.value))} inputProps={{ min: 1 }} fullWidth />
+            <TextField type="number" label="Ban hours" value={hours} onChange={e=>setHours(Number(e.target.value))} inputProps={{ min: 1 }} fullWidth />
           )}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Hủy</Button>
-        <Button variant="contained" onClick={submit}>Xác nhận</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={submit}>Confirm</Button>
       </DialogActions>
     </Dialog>
   );
@@ -770,13 +829,13 @@ const EnableConfirmDialog: React.FC<{ item: AccountItem | null; onClose: ()=>voi
   };
   return (
     <Dialog open={!!item} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Xác nhận kích hoạt</DialogTitle>
+      <DialogTitle>Enable account</DialogTitle>
       <DialogContent>
-        <Typography>Bạn có chắc muốn mở lại tài khoản này không?</Typography>
+        <Typography>Are you sure you want to enable this account?</Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Hủy</Button>
-        <Button variant="contained" color="success" onClick={submit}>Kích hoạt</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" color="success" onClick={submit}>Enable</Button>
       </DialogActions>
     </Dialog>
   );
@@ -801,23 +860,23 @@ const CreateProjectDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreate
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Thêm dự án</DialogTitle>
+      <DialogTitle>Add project</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField label="Tên dự án" value={name} onChange={e=>setName(e.target.value)} fullWidth />
-          <TextField label="Mô tả" value={description} onChange={e=>setDescription(e.target.value)} fullWidth multiline rows={3} />
+          <TextField label="Project name" value={name} onChange={e=>setName(e.target.value)} fullWidth />
+          <TextField label="Description" value={description} onChange={e=>setDescription(e.target.value)} fullWidth multiline rows={3} />
           <Select value={status} onChange={e=>setStatus(String(e.target.value))} fullWidth>
             <MenuItem value={'IN COMMING'}>IN COMMING</MenuItem>
             <MenuItem value={'PROGRESSING'}>PROGRESSING</MenuItem>
             <MenuItem value={'COMPLETED'}>COMPLETED</MenuItem>
           </Select>
-          <TextField label="Từ ngày" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} />
-          <TextField label="Đến ngày" type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+          <TextField label="Start date" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+          <TextField label="End date" type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Hủy</Button>
-        <Button variant="contained" onClick={submit}>Tạo</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={submit}>Create</Button>
       </DialogActions>
     </Dialog>
   );
@@ -828,11 +887,11 @@ const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; onDele
   return (
     <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 2 }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 200px', bgcolor: '#f8fafc', px: 2, py: 1.5, fontWeight: 700 }}>
-        <Typography>Tên dự án</Typography>
-        <Typography>Mô tả</Typography>
-        <Typography>Trạng thái</Typography>
-        <Typography>Thời gian</Typography>
-        <Typography>Thao tác</Typography>
+        <Typography>Project</Typography>
+        <Typography>Description</Typography>
+        <Typography>Status</Typography>
+        <Typography>Timeline</Typography>
+        <Typography>Actions</Typography>
       </Box>
       <Divider />
       <Stack>
@@ -857,14 +916,14 @@ const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; onDele
               {p.start_date && p.end_date ? `${p.start_date} - ${p.end_date}` : '-'}
             </Typography>
             <Box>
-              <Tooltip title="Xem chi tiết"><IconButton onClick={() => window.location.href = `/admin/projects/${p.id}`}><EditIcon /></IconButton></Tooltip>
-              <Tooltip title="Xóa"><IconButton onClick={() => onDelete(p)}><DeleteOutlineIcon /></IconButton></Tooltip>
+              <Tooltip title="Detail"><IconButton onClick={() => window.location.href = `/admin/projects/${p.id}`}><EditIcon /></IconButton></Tooltip>
+              <Tooltip title="Delete"><IconButton onClick={() => onDelete(p)}><DeleteOutlineIcon /></IconButton></Tooltip>
             </Box>
           </Box>
         ))}
         {items.length === 0 && (
           <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography color="text.secondary">Không có dự án nào</Typography>
+            <Typography color="text.secondary">No projects</Typography>
           </Box>
         )}
       </Stack>
@@ -875,18 +934,87 @@ const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; onDele
 const DeleteProjectDialog: React.FC<{ item: ProjectItem | null; onClose: ()=>void; onDelete: ()=>void; }> = ({ item, onClose, onDelete }) => {
   return (
     <Dialog open={!!item} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Xóa dự án</DialogTitle>
+      <DialogTitle>Delete project</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Bạn có chắc chắn muốn xóa dự án "{item?.name}"? Hành động này không thể hoàn tác.
+          Are you sure you want to delete "{item?.name}"? This action cannot be undone.
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Hủy</Button>
-        <Button variant="contained" color="error" onClick={onDelete}>Xóa</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" color="error" onClick={onDelete}>Delete</Button>
       </DialogActions>
     </Dialog>
   );
 };
 
+const AccountsSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => (
+  <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 2 }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: '64px 2fr 1.4fr 1fr 1fr 240px', bgcolor: '#f8fafc', px: 2, py: 1.5 }}>
+      {[...Array(6)].map((_, i) => (
+        <Skeleton key={i} variant="text" width={i === 0 ? 40 : 120} />
+      ))}
+    </Box>
+    <Divider />
+    <Stack>
+      {[...Array(rows)].map((_, idx) => (
+        <Box key={idx} sx={{ display: 'grid', gridTemplateColumns: '64px 2fr 1.4fr 1fr 1fr 240px', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid #eef0f3' }}>
+          <Skeleton variant="circular" width={36} height={36} />
+          <Skeleton variant="text" width={220} />
+          <Skeleton variant="text" width={160} />
+          <Skeleton variant="text" width={120} />
+          <Skeleton variant="text" width={120} />
+          <Stack direction="row" spacing={1}>
+            {[...Array(5)].map((__, i) => (
+              <Skeleton key={i} variant="circular" width={32} height={32} />
+            ))}
+          </Stack>
+        </Box>
+      ))}
+    </Stack>
+  </Paper>
+);
+
+const ProjectsSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => (
+  <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 2 }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 200px', bgcolor: '#f8fafc', px: 2, py: 1.5 }}>
+      {[...Array(5)].map((_, i) => (
+        <Skeleton key={i} variant="text" width={i === 0 ? 120 : 80} />
+      ))}
+    </Box>
+    <Divider />
+    <Stack>
+      {[...Array(rows)].map((_, idx) => (
+        <Box key={idx} sx={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 200px', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid #eef0f3' }}>
+          <Skeleton variant="text" width={240} />
+          <Skeleton variant="text" width={180} />
+          <Skeleton variant="rounded" width={120} height={32} />
+          <Skeleton variant="text" width={160} />
+          <Stack direction="row" spacing={1}>
+            <Skeleton variant="circular" width={32} height={32} />
+            <Skeleton variant="circular" width={32} height={32} />
+          </Stack>
+        </Box>
+      ))}
+    </Stack>
+  </Paper>
+);
+
 export default AdminDashboard;
+
+const DeleteAccountDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onDelete: ()=>void; }> = ({ item, onClose, onDelete }) => {
+  return (
+    <Dialog open={!!item} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Delete account</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Are you sure you want to delete account "{(item as any)?.email}"? This will remove the user from auth and database.
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" color="error" onClick={onDelete}>Delete</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};

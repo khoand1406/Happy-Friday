@@ -15,7 +15,7 @@ class ApiHelper {
       window.location.href = "/Unauthorized";
     } else if (error.response && error.response.status === 403) {
       const message =
-        "Bạn không có quyền truy cập vào trang này.";
+        "You don't have permission to access this page.";
       toast.error(message, {
         position: "top-right",
         autoClose: 5000,

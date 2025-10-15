@@ -38,12 +38,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, salesData
   const kpiCard = (label: string, value: React.ReactNode, color: string, Icon: any, sub?: string) => (
     <Paper sx={{ p: 3, flex: 1, borderRadius: 3, boxShadow: '0 6px 24px rgba(0,0,0,0.06)' }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant="h5" sx={{ fontWeight: 700, color, fontSize: '1.6rem' }}>{value}</Typography>
-          <Stack direction="row" spacing={0.5} alignItems="baseline">
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem' }}>{label}</Typography>
+          <Stack direction="row" spacing={0.5} alignItems="baseline" sx={{ flexWrap: 'nowrap', overflow: 'hidden' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{label}</Typography>
             {sub && (
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem' }}>{sub}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{sub}</Typography>
             )}
           </Stack>
         </Box>
@@ -58,14 +58,14 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, salesData
     <Box>
       {/* KPI cards giống mẫu */}
       <Stack direction="row" spacing={3} sx={{ mb: 3, flexWrap: 'wrap' }}>
-        {kpiCard('Tổng thành viên', stats.totalMembers, '#5b7cfa', PeopleAltOutlined, 'so với tháng trước')}
-        {kpiCard('Thành viên hoạt động', stats.activeMembers, '#22c55e', CheckCircleOutline)}
+        {kpiCard('Total members', stats.totalMembers, '#5b7cfa', PeopleAltOutlined, 'compared to last month')}
+        {kpiCard('Active members', stats.activeMembers, '#22c55e', CheckCircleOutline)}
         <Paper sx={{ p: 3, flex: 1, minWidth: 260, borderRadius: 3, boxShadow: '0 6px 24px rgba(0,0,0,0.06)' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem' }}>Tiến độ công việc</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.9rem' }}>Work progress</Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, fontSize: '1.6rem' }}>{progress}%</Typography>
           <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 999 }} />
         </Paper>
-        {kpiCard('Tổng dự án', stats.totalProjects, '#f59e0b', FolderOutlined)}
+        {kpiCard('Total projects', stats.totalProjects, '#f59e0b', FolderOutlined)}
       </Stack>
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
@@ -112,7 +112,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, salesData
 
         {/* Donut chart: dùng cho phân phối trạng thái dự án hoặc phân bổ nhân sự theo phòng ban */}
         <Paper sx={{ p: 3, flex: 1, borderRadius: 3, boxShadow: '0 6px 24px rgba(0,0,0,0.06)' }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Phân phối</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Distribution</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {(() => {
               const size = 180; const stroke = 20; const r = (size - stroke) / 2; const c = 2 * Math.PI * r;
