@@ -179,7 +179,7 @@ export default function MainLayout({
                   <SearchIcon />
                 </SearchIconWrapper>
                 <StyledInputBase
-                  placeholder="Tìm kiếm mọi thứ..."
+                  placeholder="Search everything..."
                   inputProps={{ "aria-label": "search" }}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}

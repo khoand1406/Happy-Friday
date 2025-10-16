@@ -17,7 +17,6 @@ export interface CreateAccountRequest {
   password: string;
   full_name?: string;
   phone?: string;
-  role_id?: number;
   department_id?: number;
 }
 
