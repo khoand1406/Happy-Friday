@@ -2,6 +2,11 @@ export interface DepartmentResponse {
     id: number;
     name: string;
     memberCount: number;
-    description?: string;
+    leader: {
+        id: string,
+        name: string,
+        avatarUrl: string | null
+        role: string
+    }
 }
 
