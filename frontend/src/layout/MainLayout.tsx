@@ -183,6 +183,12 @@ export default function MainLayout({
                   inputProps={{ "aria-label": "search" }}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e)=> {
+                    if(e.key==="Enter" && search.trim()!==""){
+                      navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+                      setSearch("");
+                    }
+                  }}
                 />
               </Search>
             </Box>

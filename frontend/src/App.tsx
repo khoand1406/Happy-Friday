@@ -11,6 +11,7 @@ import DualCalendarLayout from './layout/Calender'
 import ProjectList from './pages/ProjectList'
 import ProjectDetail from './pages/ProjectDetail'
 import AdminProjectDetail from './pages/AdminProjectDetail'
+import SearchResultPage from './pages/SearchResultPage'
 
 const App: React.FC = () => {
   return (
@@ -28,6 +29,7 @@ const App: React.FC = () => {
         <Route element= {<AdminProjectDetail />} path='/admin/projects/:id'></Route>
         <Route element= {<ProjectList />} path='/projects'></Route>
         <Route element= {<ProjectDetail />} path='/projects/:id'></Route>
+        <Route element= {<SearchResultPage ></SearchResultPage>} path='/search'></Route>
 
     </Routes>
     </BrowserRouter>
