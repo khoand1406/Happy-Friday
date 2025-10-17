@@ -6,7 +6,7 @@ import ReactECharts from "echarts-for-react";
 type DepartmentOrgChartProps = {
   departments: DepartmentResponse[];
   centerName?: string;
-}
+};
 
 export const DepartmentOrgChart: React.FC<DepartmentOrgChartProps> = ({
   departments,
@@ -68,8 +68,8 @@ export const DepartmentOrgChart: React.FC<DepartmentOrgChartProps> = ({
           x2: 1,
           y2: 1,
           colorStops: [
-            { offset: 0, color: "#0a612d" },
-            { offset: 1, color: "#1b8f4d" },
+            { offset: 0, color: "#19984cff" },
+            { offset: 1, color: "#23c569ff" },
           ],
         },
         borderRadius: 15,
@@ -78,11 +78,12 @@ export const DepartmentOrgChart: React.FC<DepartmentOrgChartProps> = ({
         shadowBlur: 12,
         shadowColor: "rgba(0,0,0,0.3)",
       },
+
       label: {
         show: true,
         formatter: `{b}`,
-        color: "#fff",
-        fontSize: 18,
+        color: "#e4f137ff", // màu cam
+        fontSize: 14,
         fontWeight: "bold",
       },
     });
@@ -114,16 +115,16 @@ export const DepartmentOrgChart: React.FC<DepartmentOrgChartProps> = ({
         label: {
           show: true,
           formatter: `${dep.name}\n👥 ${memberCount} Members`,
-          color: "#1b5e20",
-          fontSize: 13,
-          fontWeight: "medium",
+          color: "#fff", // trắng
+          fontSize: 10,
+          fontWeight: "small",
           lineHeight: 20,
           padding: [8, 10],
         },
-        
-        description: dep.description ?? "No description",
+
         memberCount,
         id: dep.id,
+        leader: dep.leader,
       });
 
       links.push({
@@ -147,14 +148,30 @@ export const DepartmentOrgChart: React.FC<DepartmentOrgChartProps> = ({
         formatter: (params: any) => {
           const d = params.data;
           if (d.name === centerName) return `<strong>${centerName}</strong>`;
+
+          const avatarUrl = d.leader?.avatarUrl
+            ? d.leader.avatarUrl
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                d.leader?.name ?? "N/A"
+              )}&background=random`;
+
           return `
-            <div style="min-width:180px">
-              <strong>${d.name}</strong><br/>
-              👥 ${d.memberCount} Members<br/>
-              📝 ${d.description}
-            </div>`;
+      <div style="min-width:220px">
+        <strong>${d.name}</strong><br/>
+        👥 ${d.memberCount} Members<br/>
+        <div style="display:flex;align-items:center;margin-top:6px">
+          <img src="${avatarUrl}" alt="${
+            d.leader?.name
+          }" style="width:36px;height:36px;border-radius:50%;margin-right:8px"/>
+          <div>
+            🧑‍💼 <b>${d.leader?.name ?? "N/A"}</b><br/>
+            🏷️ ${d.leader?.role ?? "N/A"}
+          </div>
+        </div>
+      </div>`;
         },
       },
+
       series: [
         {
           type: "graph",

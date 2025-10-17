@@ -43,7 +43,7 @@ export class AuthService {
     console.log('[Auth] login user.id:', user.id, 'email:', user.email);
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('avatar_url, role_id')
+      .select('avatar_url, role_id, name')
       .eq('id', user.id)
       .single();
     console.log('[Auth] db profile:', profile);
@@ -55,12 +55,14 @@ export class AuthService {
     return {
       ...user,
       role_id: profile?.role_id ?? null,
-      avatar_url: profile?.avatar_url ?? null
+      avatar_url: profile?.avatar_url ?? null,
+      name: profile?.name?? null
     };
   }
 
   async getAuthenticated(user: any) {
-    const payload = { sub: user.id };
+    const payload = { sub: user.id, email: user.email,
+    name: user.name, };
     return {
       access_token: this.JWTService.sign(payload),
       user,

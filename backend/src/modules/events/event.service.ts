@@ -70,8 +70,8 @@ export class EventService {
     const { data: eventData, error } = await supabaseAdmin
       .from('events')
       .insert({
-        title: model.title,
-        content: model.content,
+        title: model.title ?? "No title",
+        content: model.content ?? "No Content",
         startDate: model.startDate,
         endDate: model.endDate,
         creatorId: model.creatorId,
@@ -79,14 +79,12 @@ export class EventService {
       .select()
       .single();
 
-   
       const attendancesPayload= [...model.invitees, model.creatorId];
       
-
       const attendances = attendancesPayload.map((userId) => ({
         userid: userId,
         eventId: eventData.id,
-        status: false,
+        status: userId === model.creatorId,
         created_at: new Date().toISOString(),
         update_at: null,
 
@@ -171,7 +169,7 @@ export class EventService {
     userId: string,
     status: boolean,
   ): Promise<void> {
-    const { data, error } = await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('attendences')
       .update({
         status: status,
@@ -185,8 +183,6 @@ export class EventService {
         'Internal Server Error: ' + error.message,
       );
     }
-    if (!data) {
-      throw new InternalServerErrorException('RSVP record not found');
-    }
+    
   }
 }

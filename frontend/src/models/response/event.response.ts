@@ -21,13 +21,13 @@ export interface EventDetailResponse{
 interface UserBasicInfo{
     id: string;
     name: string;
-    avatarUrl: string;
+    avatar_url: string;
 }
 
-interface Invite{
+export interface Invite{
     user_id: string;
     name: string;
-    avatarUrl: string;
+    avatar_url: string;
     status: boolean;
     joined_at: Date | null;
 }

@@ -17,7 +17,12 @@ import {
   CircularProgress,
   Autocomplete,
   Avatar,
+  IconButton,
+  Collapse,
+  Divider,
 } from "@mui/material";
+import { Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
+
 import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -27,16 +32,26 @@ import {
   getEvents,
   getEventDetail,
   createEvent,
+  deleteEvent,
+  updateEvent,
+  acceptEvent,
+  rejectEvent,
 } from "../services/events.service";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import type {
   EventDetailResponse,
   EventResponse,
+  Invite,
 } from "../models/response/event.response";
 import type { UserBasicRespone } from "../models/response/user.response";
 import { getMembers } from "../services/user.service";
 import type { CreateEventRequest } from "../models/request/event.request";
 import { toast, ToastContainer } from "react-toastify";
 import { AxiosError } from "axios";
+import { useUser } from "../context/UserContext";
 
 export default function CalendarLayout() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -53,30 +68,83 @@ export default function CalendarLayout() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [users, setUsers] = useState<UserBasicRespone[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserBasicRespone[]>([]);
+  const [editMode, setEditMode] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const { user } = useUser();
+  const [expanded, setExpanded] = useState(false);
+  const currentInvite = eventDetail?.attendees?.find(
+    (a) => a.user_id === user?.id
+  );
+  const hasAccepted = currentInvite?.status === true;
+  const [confirmed, setConfirmed] = useState<Invite[]>([]);
+  const [pending, setPending] = useState<Invite[]>([]);
 
   const handleAddEvent = async () => {
-    if (newEvent.title && newEvent.start && newEvent.end) {
-      const payload: CreateEventRequest = {
-        title: newEvent.title,
-        content: newEvent.content,
-        startDate: new Date(newEvent.start),
-        endDate: new Date(newEvent.end),
-        invitees: selectedUser.map((user) => user.user_id),
-      };
-      try {
-        const response = await createEvent(payload);
-        if (response) {
-          toast.success("Create event successfully!!");
-        }
-      } catch (error) {
-        if (error instanceof AxiosError) {
-          toast.error("An error occur! Try again");
-        }
-      } finally {
-        setOpenModal(false);
-        setNewEvent({ title: "", content: "", start: "", end: "" });
-        setSelectedUser([]);
+    if (!newEvent.start || !newEvent.end) {
+      toast.warning("Please fill in all required fields!");
+      return;
+    }
+
+    const payload: CreateEventRequest = {
+      title: newEvent.title,
+      content: newEvent.content,
+      startDate: new Date(newEvent.start),
+      endDate: new Date(newEvent.end),
+      invitees: selectedUser.map((user) => user.user_id),
+    };
+
+    try {
+      if (editMode && editingEventId) {
+        await updateEvent(payload, editingEventId);
+        toast.success("Event updated successfully!");
+      } else {
+        await createEvent(payload);
+        toast.success("Event created successfully!");
       }
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        toast.error("An error occurred! Try again");
+      } else {
+        toast.error("Unexpected error!");
+      }
+    } finally {
+      setOpenModal(false);
+      setNewEvent({ title: "", content: "", start: "", end: "" });
+      setSelectedUser([]);
+      setEditMode(false);
+      setEditingEventId(null);
+    }
+  };
+
+  const handleAcceptInvite = async (eventId: number) => {
+    try {
+      await acceptEvent(eventId);
+      toast.info("Event confirmed successfully. Please be in-time");
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        toast.error("An error occurs! Try Again");
+      } else {
+        toast.error("An error occurs! Try Again");
+        console.log(error);
+      }
+    } finally {
+      setDetailDialogOpen(false);
+    }
+  };
+
+  const handleDeclineInvite = async (eventId: number) => {
+    try {
+      await rejectEvent(eventId);
+      toast.info("Event declined. See later time");
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        toast.error("An error occurs! Try Again");
+      } else {
+        toast.error("An error occurs! Try Again");
+        console.log(error);
+      }
+    } finally {
+      setDetailDialogOpen(false);
     }
   };
 
@@ -190,6 +258,8 @@ export default function CalendarLayout() {
                 const eventId = parseInt(info.event.id);
                 const detail = await getEventDetail(eventId);
                 setEventDetail(detail);
+                setConfirmed(detail.attendees.filter((x) => x.status === true));
+                setPending(detail.attendees.filter((x) => x.status === false));
                 setDetailDialogOpen(true);
               } catch (error) {
                 console.error("Failed to fetch event detail:", error);
@@ -260,16 +330,16 @@ export default function CalendarLayout() {
                 const { key, ...rest } = props;
                 return (
                   <Box
-      component="li"
-      key={key}
-      {...rest}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        py: 1,
-      }}
-    >
+                    component="li"
+                    key={key}
+                    {...rest}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      py: 1,
+                    }}
+                  >
                     <Avatar
                       src={
                         option.avatar_url ||
@@ -303,23 +373,170 @@ export default function CalendarLayout() {
         <Dialog
           open={detailDialogOpen}
           onClose={() => setDetailDialogOpen(false)}
-          maxWidth="sm"
           fullWidth
+          maxWidth="md"
+          sx={{
+            "& .MuiDialog-paper": {
+              maxHeight: "90vh",
+              minHeight: "70vh",
+            },
+          }}
         >
           <DialogContent>
             {eventDetail ? (
               <Box
-                sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}
+                sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
               >
-                <Typography variant="h6">{eventDetail.title}</Typography>
-                <Typography>{eventDetail.content}</Typography>
-                <Typography>
-                  🕒 {new Date(eventDetail.startDate).toLocaleString()} -{" "}
+                {/* Title */}
+                <Typography variant="h6" fontWeight="bold">
+                  {eventDetail.title}
+                </Typography>
+
+                <Divider />
+
+                {/* Content */}
+                <Typography whiteSpace="pre-line">
+                  {eventDetail.content}
+                </Typography>
+
+                <Divider />
+
+                {/* Time */}
+                <Typography color="text.secondary">
+                  🕒 {new Date(eventDetail.startDate).toLocaleString()} →{" "}
                   {new Date(eventDetail.endDate).toLocaleString()}
                 </Typography>
-                <Typography>
-                  👤 <b>Organizer:</b> {eventDetail.creator.name}
+                <Box
+          display="flex"
+          alignItems="center"
+          gap={1.5}
+          p={1.2}
+          sx={{
+            backgroundColor: "#f9f9f9",
+            borderRadius: "10px",
+          }}
+        >
+                  <Avatar
+                    src={
+                      eventDetail.creator.avatar_url ||
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        eventDetail.creator.name
+                      )}&background=random`
+                    }
+                    alt={eventDetail.creator.name}
+                    sx={{ width: 40, height: 40 }}
+                  />
+                  <Typography variant="body1">
+                    <b>{eventDetail.creator.name}</b> has invited you.
+                  </Typography>
+                </Box>
+                <Box display="flex" justifyContent="center">
+          <Button
+            variant="text"
+            size="small"
+            startIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            onClick={() => setExpanded((prev) => !prev)}
+          >
+            {expanded ? "Thu gọn" : "Xem người tham gia"}
+          </Button>
+        </Box>
+
+                 <Collapse in={expanded} timeout="auto" unmountOnExit>
+          <Box sx={{ mt: 2 }}>
+            {/* Confirmed */}
+            <Typography
+              variant="subtitle1"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                fontWeight: "bold",
+              }}
+            >
+              <CheckCircleIcon color="success" fontSize="small" />
+              Confirmed ({confirmed.length})
+            </Typography>
+
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              {confirmed.length > 0 ? (
+                confirmed.map((user) => (
+                  <Grid size= {{xs: 12, sm: 6, md:4}}
+                    key={user.user_id}
+                    display="flex"
+                    alignItems="center"
+                    gap={1}
+                  >
+                    <Avatar
+                      src={
+                        user.avatar_url ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          user.name
+                        )}&background=random`
+                      }
+                      sx={{ width: 32, height: 32 }}
+                    />
+                    <Typography variant="body2">{user.name}</Typography>
+                  </Grid>
+                ))
+              ) : (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ ml: 4 }}
+                >
+                  No confirmed attendees
                 </Typography>
+              )}
+            </Grid>
+
+            {/* Unconfirmed */}
+            <Typography
+              variant="subtitle1"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                mt: 3,
+                fontWeight: "bold",
+              }}
+            >
+              <HourglassEmptyIcon color="warning" fontSize="small" />
+              Unconfirmed ({pending.length})
+            </Typography>
+
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              {pending.length > 0 ? (
+                pending.map((user) => (
+                  <Grid size= {{xs: 12, sm: 6, md: 4}}
+                    key={user.user_id}
+                    display="flex"
+                    alignItems="center"
+                    gap={1}
+                  >
+                    <Avatar
+                      src={
+                        user.avatar_url ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          user.name
+                        )}&background=random`
+                      }
+                      sx={{ width: 32, height: 32 }}
+                    />
+                    <Typography variant="body2">{user.name}</Typography>
+                  </Grid>
+                ))
+              ) : (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ ml: 4 }}
+                >
+                  No pending attendees
+                </Typography>
+              )}
+            </Grid>
+          </Box>
+        </Collapse>
               </Box>
             ) : (
               <Box display="flex" justifyContent="center" p={2}>
@@ -327,9 +544,100 @@ export default function CalendarLayout() {
               </Box>
             )}
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDetailDialogOpen(false)}>Close</Button>
-          </DialogActions>
+
+          {eventDetail && (
+            <DialogActions
+              sx={{
+                justifyContent: "space-between",
+                px: 3,
+                py: 2,
+                borderTop: "1px solid #eee",
+              }}
+            >
+              {/* Nếu là người tạo sự kiện */}
+              {eventDetail.creator.id === user?.id ? (
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <IconButton
+                    color="primary"
+                    onClick={() => {
+                      setNewEvent({
+                        title: eventDetail.title,
+                        content: eventDetail.content,
+                        start: new Date(eventDetail.startDate)
+                          .toISOString()
+                          .slice(0, 16),
+                        end: new Date(eventDetail.endDate)
+                          .toISOString()
+                          .slice(0, 16),
+                      });
+                      setSelectedUser(
+                        eventDetail.attendees?.map((u) => ({
+                          user_id: u.user_id,
+                          name: u.name,
+                          avatar_url: u.avatar_url,
+                          department_name: u.name,
+                        })) ?? []
+                      );
+                      setEditingEventId(eventDetail.id);
+                      setEditMode(true);
+                      setOpenModal(true);
+                      setDetailDialogOpen(false);
+                    }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+
+                  <IconButton
+                    color="error"
+                    onClick={async () => {
+                      if (
+                        confirm("Are you sure you want to delete this event?")
+                      ) {
+                        try {
+                          await deleteEvent(eventDetail.id);
+                          toast.success("Event deleted successfully!");
+                          setDetailDialogOpen(false);
+                        } catch (error) {
+                          toast.error("Failed to delete event!");
+                          console.error(error);
+                        }
+                      }
+                    }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              ) : (
+                <>
+                  {!hasAccepted ? (
+                    <>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        onClick={() => handleAcceptInvite(eventDetail.id)}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => handleDeclineInvite(eventDetail.id)}
+                      >
+                        Decline
+                      </Button>
+                    </>
+                  ) : (
+                    <Typography color="text.secondary" sx={{ mr: 2 }}>
+                      ✅ You’ve accepted this event
+                    </Typography>
+                  )}
+                </>
+              )}
+
+              {/* Close button bên phải */}
+              <Button onClick={() => setDetailDialogOpen(false)}>Close</Button>
+            </DialogActions>
+          )}
         </Dialog>
       </Grid>
       <ToastContainer></ToastContainer>
