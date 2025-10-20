@@ -1,57 +1,58 @@
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
 import enLocale from "@fullcalendar/core/locales/en-gb";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import FullCalendar from "@fullcalendar/react";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import { Delete as DeleteIcon, Edit as EditIcon } from "@mui/icons-material";
 import {
-  Box,
-  Grid,
-  Typography,
-  Paper,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  CircularProgress,
   Autocomplete,
   Avatar,
-  IconButton,
+  Box,
+  Button,
+  CircularProgress,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
+  Grid,
+  IconButton,
+  Paper,
+  TextField,
+  Typography,
 } from "@mui/material";
-import { Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
 
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { AxiosError } from "axios";
 import { useEffect, useState } from "react";
-import MainLayout from "./MainLayout";
-import {
-  getEvents,
-  getEventDetail,
-  createEvent,
-  deleteEvent,
-  updateEvent,
-  acceptEvent,
-  rejectEvent,
-} from "../services/events.service";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import { toast, ToastContainer } from "react-toastify";
+import { useUser } from "../context/UserContext";
+import type { CreateEventRequest } from "../models/request/event.request";
 import type {
   EventDetailResponse,
   EventResponse,
   Invite,
 } from "../models/response/event.response";
 import type { UserBasicRespone } from "../models/response/user.response";
+import {
+  acceptEvent,
+  createEvent,
+  deleteEvent,
+  getEventDetail,
+  getEvents,
+  rejectEvent,
+  updateEvent,
+} from "../services/events.service";
 import { getMembers } from "../services/user.service";
-import type { CreateEventRequest } from "../models/request/event.request";
-import { toast, ToastContainer } from "react-toastify";
-import { AxiosError } from "axios";
-import { useUser } from "../context/UserContext";
+import MainLayout from "./MainLayout";
+import { formatDateHanoi } from "../utils/DateFormat";
 
 export default function CalendarLayout() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -241,12 +242,13 @@ export default function CalendarLayout() {
                 const mapped = data.map((item) => ({
                   id: item.id.toString(),
                   title: item.title,
-                  start: item.startDate,
-                  end: item.endDate,
+                  start: new Date(item.startdate), // để nguyên ISO
+                  end: new Date(item.enddate),
                   backgroundColor: "rgba(255, 235, 59, 0.3)",
                   borderColor: "rgba(255, 213, 90, 0.6)",
                   textColor: "#333",
                 }));
+
                 successCallback(mapped);
               } catch (error: any) {
                 console.error("Error fetching events:", error);
@@ -402,20 +404,19 @@ export default function CalendarLayout() {
                 <Divider />
 
                 {/* Time */}
-                <Typography color="text.secondary">
-                  🕒 {new Date(eventDetail.startDate).toLocaleString()} →{" "}
-                  {new Date(eventDetail.endDate).toLocaleString()}
-                </Typography>
+                 <Typography color="text.secondary">
+  🕒 {formatDateHanoi(eventDetail.startDate).replace("T", " ")} → {formatDateHanoi(eventDetail.endDate).replace("T", " ")}
+</Typography>
                 <Box
-          display="flex"
-          alignItems="center"
-          gap={1.5}
-          p={1.2}
-          sx={{
-            backgroundColor: "#f9f9f9",
-            borderRadius: "10px",
-          }}
-        >
+                  display="flex"
+                  alignItems="center"
+                  gap={1.5}
+                  p={1.2}
+                  sx={{
+                    backgroundColor: "#f9f9f9",
+                    borderRadius: "10px",
+                  }}
+                >
                   <Avatar
                     src={
                       eventDetail.creator.avatar_url ||
@@ -431,112 +432,116 @@ export default function CalendarLayout() {
                   </Typography>
                 </Box>
                 <Box display="flex" justifyContent="center">
-          <Button
-            variant="text"
-            size="small"
-            startIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            onClick={() => setExpanded((prev) => !prev)}
-          >
-            {expanded ? "Thu gọn" : "Xem người tham gia"}
-          </Button>
-        </Box>
-
-                 <Collapse in={expanded} timeout="auto" unmountOnExit>
-          <Box sx={{ mt: 2 }}>
-            {/* Confirmed */}
-            <Typography
-              variant="subtitle1"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                fontWeight: "bold",
-              }}
-            >
-              <CheckCircleIcon color="success" fontSize="small" />
-              Confirmed ({confirmed.length})
-            </Typography>
-
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              {confirmed.length > 0 ? (
-                confirmed.map((user) => (
-                  <Grid size= {{xs: 12, sm: 6, md:4}}
-                    key={user.user_id}
-                    display="flex"
-                    alignItems="center"
-                    gap={1}
+                  <Button
+                    variant="text"
+                    size="small"
+                    startIcon={
+                      expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
+                    }
+                    onClick={() => setExpanded((prev) => !prev)}
                   >
-                    <Avatar
-                      src={
-                        user.avatar_url ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          user.name
-                        )}&background=random`
-                      }
-                      sx={{ width: 32, height: 32 }}
-                    />
-                    <Typography variant="body2">{user.name}</Typography>
-                  </Grid>
-                ))
-              ) : (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ ml: 4 }}
-                >
-                  No confirmed attendees
-                </Typography>
-              )}
-            </Grid>
+                    {expanded ? "View Less" : "Expand"}
+                  </Button>
+                </Box>
 
-            {/* Unconfirmed */}
-            <Typography
-              variant="subtitle1"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                mt: 3,
-                fontWeight: "bold",
-              }}
-            >
-              <HourglassEmptyIcon color="warning" fontSize="small" />
-              Unconfirmed ({pending.length})
-            </Typography>
+                <Collapse in={expanded} timeout="auto" unmountOnExit>
+                  <Box sx={{ mt: 2 }}>
+                    {/* Confirmed */}
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      <CheckCircleIcon color="success" fontSize="small" />
+                      Confirmed ({confirmed.length})
+                    </Typography>
 
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              {pending.length > 0 ? (
-                pending.map((user) => (
-                  <Grid size= {{xs: 12, sm: 6, md: 4}}
-                    key={user.user_id}
-                    display="flex"
-                    alignItems="center"
-                    gap={1}
-                  >
-                    <Avatar
-                      src={
-                        user.avatar_url ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          user.name
-                        )}&background=random`
-                      }
-                      sx={{ width: 32, height: 32 }}
-                    />
-                    <Typography variant="body2">{user.name}</Typography>
-                  </Grid>
-                ))
-              ) : (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ ml: 4 }}
-                >
-                  No pending attendees
-                </Typography>
-              )}
-            </Grid>
-          </Box>
-        </Collapse>
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                      {confirmed.length > 0 ? (
+                        confirmed.map((user) => (
+                          <Grid
+                            size={{ xs: 12, sm: 6, md: 4 }}
+                            key={user.user_id}
+                            display="flex"
+                            alignItems="center"
+                            gap={1}
+                          >
+                            <Avatar
+                              src={
+                                user.avatar_url ||
+                                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                  user.name
+                                )}&background=random`
+                              }
+                              sx={{ width: 32, height: 32 }}
+                            />
+                            <Typography variant="body2">{user.name}</Typography>
+                          </Grid>
+                        ))
+                      ) : (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ ml: 4 }}
+                        >
+                          No confirmed attendees
+                        </Typography>
+                      )}
+                    </Grid>
+
+                    {/* Unconfirmed */}
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mt: 3,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      <HourglassEmptyIcon color="warning" fontSize="small" />
+                      Unconfirmed ({pending.length})
+                    </Typography>
+
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                      {pending.length > 0 ? (
+                        pending.map((user) => (
+                          <Grid
+                            size={{ xs: 12, sm: 6, md: 4 }}
+                            key={user.user_id}
+                            display="flex"
+                            alignItems="center"
+                            gap={1}
+                          >
+                            <Avatar
+                              src={
+                                user.avatar_url ||
+                                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                  user.name
+                                )}&background=random`
+                              }
+                              sx={{ width: 32, height: 32 }}
+                            />
+                            <Typography variant="body2">{user.name}</Typography>
+                          </Grid>
+                        ))
+                      ) : (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ ml: 4 }}
+                        >
+                          No pending attendees
+                        </Typography>
+                      )}
+                    </Grid>
+                  </Box>
+                </Collapse>
               </Box>
             ) : (
               <Box display="flex" justifyContent="center" p={2}>
@@ -563,12 +568,8 @@ export default function CalendarLayout() {
                       setNewEvent({
                         title: eventDetail.title,
                         content: eventDetail.content,
-                        start: new Date(eventDetail.startDate)
-                          .toISOString()
-                          .slice(0, 16),
-                        end: new Date(eventDetail.endDate)
-                          .toISOString()
-                          .slice(0, 16),
+                        start: formatDateHanoi(eventDetail.startDate),
+                        end: formatDateHanoi(eventDetail.endDate),
                       });
                       setSelectedUser(
                         eventDetail.attendees?.map((u) => ({

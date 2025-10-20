@@ -25,8 +25,11 @@ export class EventController {
   async getEvents(
     @Query('startDate') startDate: Date,
     @Query('endDate') endDate: Date,
+    @Req() req
   ) {
-    const response = await this.eventService.getEvents(startDate, endDate);
+    const userId= req.user.sub;
+    
+    const response = await this.eventService.getEvents(userId, startDate, endDate);
     return response;
   }
   @Get('/:eventId')
