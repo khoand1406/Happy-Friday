@@ -10,12 +10,9 @@ import { supabaseAdmin } from 'src/config/database.config';
 
 @Injectable()
 export class EventService {
-  async getEvents(startDate: Date, endDate: Date): Promise<EventResponse[]> {
+  async getEvents(userId: string, startDate: Date, endDate: Date): Promise<EventResponse[]> {
     const { data, error } = await supabaseAdmin
-      .from('events')
-      .select('*')
-      .gte('startDate', startDate)
-      .lte('endDate', endDate);
+      .rpc("get_user_events", {uid: userId, start_d: new Date(startDate).toISOString(), end_d: new Date(endDate).toISOString()})
     if (error) {
       throw new InternalServerErrorException(
         'Internal Server Error: ' + error.message,
@@ -50,34 +47,33 @@ export class EventService {
   }
 
   async getDetailEvent(eventId: number): Promise<EventDetailResponse> {
-    const { data, error } = await supabaseAdmin
-      .from('event_with_attendees_json')
-      .select('*')
-      .eq('id', eventId)
-      .single();
-    if (error) {
-      throw new InternalServerErrorException(
-        'Internal Server Error: ' + error.message,
-      );
-    }
-    if (!data || data.length === 0) {
-      throw new InternalServerErrorException('Event not found');
-    }
-    return data as EventDetailResponse;
-  }
+  const { data, error } = await supabaseAdmin
+    .from('event_with_attendees_json')
+    .select('*')
+    .eq('id', eventId)
+    .single();
+
+  if (error) throw new InternalServerErrorException(error.message);
+  return data as EventDetailResponse;
+}
 
   async createEvent(model: CreateEventRequest): Promise<CreateEventResponse> {
-    const { data: eventData, error } = await supabaseAdmin
-      .from('events')
-      .insert({
-        title: model.title ?? "No title",
-        content: model.content ?? "No Content",
-        startDate: model.startDate,
-        endDate: model.endDate,
-        creatorId: model.creatorId,
-      })
-      .select()
-      .single();
+    const toUTC = (date: any) => {
+    const d = new Date(date);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
+  };
+
+  const { data: eventData, error } = await supabaseAdmin
+    .from('events')
+    .insert({
+      title: model.title ?? 'No title',
+      content: model.content ?? 'No content',
+      startDate: toUTC(model.startDate),
+      endDate: toUTC(model.endDate),
+      creatorId: model.creatorId,
+    })
+    .select()
+    .single();
 
       const attendancesPayload= [...model.invitees, model.creatorId];
       
@@ -109,13 +105,17 @@ export class EventService {
   }
 
   async updateEvent(eventId: number, model: UpdateEventRequest): Promise<void> {
+    const toUTC = (date: any) => {
+    const d = new Date(date);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
+  };
     const { error } = await supabaseAdmin
       .from('events')
       .update({
         title: model.title ? model.title : 'No Title',
         content: model.content ? model.content : 'No Content',
-        startDate: model.startDate ? model.startDate : new Date(),
-        endDate: model.endDate ? model.endDate : new Date(),
+        startDate: model.startDate ? toUTC(model.startDate) : new Date(),
+        endDate: model.endDate ? toUTC(model.endDate) : new Date(),
       })
       .eq('id', eventId);
 

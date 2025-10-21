@@ -2,9 +2,9 @@ export interface EventResponse{
     id: number;
     title: string;
     content: string;
-    startDate: Date;
-    endDate: Date;
-    creatorId: string;
+    startdate: Date;
+    enddate: Date;
+    creatorid: string;
 }
 
 export interface EventDetailResponse{
