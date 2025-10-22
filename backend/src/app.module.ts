@@ -7,6 +7,7 @@ import { EventModule } from './modules/events/event.module';
 import { InviteModule } from './modules/invites/invite.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { SearchModule } from './modules/search/search.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SearchModule } from './modules/search/search.module';
     InviteModule,
     ProjectsModule,
     SearchModule,
+    NotificationModule
   ],
 })
 export class AppModule {}

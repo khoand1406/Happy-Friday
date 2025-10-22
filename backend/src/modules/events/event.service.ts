@@ -1,18 +1,29 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { supabaseAdmin } from 'src/config/database.config';
+import { NotificationServices } from '../notification/notification.service';
 import {
   CreateEventRequest,
   CreateEventResponse,
   EventDetailResponse,
   EventResponse,
+  EventResponseT,
   UpdateEventRequest,
 } from './dto/event.dto';
-import { supabaseAdmin } from 'src/config/database.config';
 
 @Injectable()
 export class EventService {
-  async getEvents(userId: string, startDate: Date, endDate: Date): Promise<EventResponse[]> {
-    const { data, error } = await supabaseAdmin
-      .rpc("get_user_events", {uid: userId, start_d: new Date(startDate).toISOString(), end_d: new Date(endDate).toISOString()})
+  private readonly logger = new Logger(EventService.name);
+  constructor(private readonly notiService: NotificationServices) {}
+  async getEvents(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<EventResponse[]> {
+    const { data, error } = await supabaseAdmin.rpc('get_user_events', {
+      uid: userId,
+      start_d: new Date(startDate).toISOString(),
+      end_d: new Date(endDate).toISOString(),
+    });
     if (error) {
       throw new InternalServerErrorException(
         'Internal Server Error: ' + error.message,
@@ -20,20 +31,68 @@ export class EventService {
     }
     return data as EventResponse[];
   }
-  async getIncomingEvents(): Promise<EventResponse[]> {
-    const { data, error } = await supabaseAdmin
-      .from('events')
-      .select('*')
-      .gte('startDate', new Date().toISOString());
-    if (error) {
-      throw new InternalServerErrorException(
-        'Internal Server Error: ' + error.message,
-      );
-    }
-    return data as EventResponse[];
-  }
+  async getIncomingEvents(): Promise<any> {
+    const now = new Date().toISOString();
+    try {
+      this.logger.log(`Querying incoming events with startDate >= ${now}`);
 
-  async getPastEvents(): Promise<EventResponse[]> {
+      const { data, error, status } = await supabaseAdmin
+        .from('events')
+        // chú ý: supabase JS chấp nhận camelCase, nhưng nếu DB có quote-sensitive column names
+        // bạn vẫn có thể thử .select('"id","title","content","startDate","endDate","creatorId"')
+        .select('id, title, content, "startDate", "endDate", "creatorId"')
+        .gte('startDate', now);
+
+      // Log chi tiết trả về từ supabase
+      this.logger.debug(`Supabase response status=${status}`);
+      this.logger.debug('Supabase raw error:', JSON.stringify(error));
+      this.logger.debug('Supabase raw data length:', Array.isArray(data) ? data.length : typeof data);
+
+      if (error) {
+        // log đầy đủ error object
+        this.logger.error('Supabase returned error', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        // debug cụ thể các trường trong error (nếu có)
+        throw new InternalServerErrorException('Supabase error: ' + (error.message ?? JSON.stringify(error)));
+      }
+
+      // thêm bước kiểm tra & lọc dữ liệu bất thường trước khi map
+      const safeData = (data ?? []).filter((item, idx) => {
+        const okId = item?.id !== undefined && item?.id !== null;
+        const okStart = !!item?.startDate;
+        const okEnd = !!item?.endDate;
+        if (!okId || !okStart || !okEnd) {
+          this.logger.warn(`Skipping invalid row at index ${idx}: id=${item?.id}, startDate=${item?.startDate}, endDate=${item?.endDate}`);
+          return false;
+        }
+        // nếu id không phải là number hoặc numeric string, log ra
+        if (isNaN(Number(item.id))) {
+          this.logger.warn(`Row id is not numeric: id=${String(item.id)} (type=${typeof item.id}) at index ${idx}`);
+          // chúng ta vẫn giữ row (nếu bạn muốn bỏ row, return false)
+          // return false to skip
+        }
+        return true;
+      });
+
+      // map an toàn: giữ creatorId nguyên (UUID string), convert id nếu cần
+      const mapped = safeData.map((item) => ({
+        id: typeof item.id === 'number' ? item.id : Number(item.id), // nếu không numeric thì sẽ thành NaN — đã warn ở trên
+        title: item.title ?? 'No Title',
+        content: item.content ?? '',
+        start: new Date(item.startDate),
+        end: new Date(item.endDate),
+        creatorId: String(item.creatorId),
+      }));
+
+      this.logger.log(`Returning ${mapped.length} incoming events`);
+      return mapped;
+    } catch (err) {
+      // log mọi thứ trước khi ném
+      this.logger.error('getIncomingEvents failed', err as any);
+      // expose minimal message to client but keep details in logs
+      throw new InternalServerErrorException('Internal Server Error while fetching incoming events');
+    }
+  }
+  async getPastEvents(): Promise<EventResponseT[]> {
     const { data, error } = await supabaseAdmin
       .from('events')
       .select('*')
@@ -43,72 +102,94 @@ export class EventService {
         'Internal Server Error: ' + error.message,
       );
     }
-    return data as EventResponse[];
+    return (data as any[]).map((item) => ({
+      ...item,
+      startDate: new Date(item.startDate),
+      endDate: new Date(item.endDate),
+    })) as EventResponseT[];
   }
 
   async getDetailEvent(eventId: number): Promise<EventDetailResponse> {
-  const { data, error } = await supabaseAdmin
-    .from('event_with_attendees_json')
-    .select('*')
-    .eq('id', eventId)
-    .single();
+    const { data, error } = await supabaseAdmin
+      .from('event_with_attendees_json')
+      .select('*')
+      .eq('id', eventId)
+      .single();
 
-  if (error) throw new InternalServerErrorException(error.message);
-  return data as EventDetailResponse;
-}
+    if (error) throw new InternalServerErrorException(error.message);
+    return data as EventDetailResponse;
+  }
 
   async createEvent(model: CreateEventRequest): Promise<CreateEventResponse> {
     const toUTC = (date: any) => {
-    const d = new Date(date);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
-  };
+      const d = new Date(date);
+      return new Date(
+        d.getTime() - d.getTimezoneOffset() * 60000,
+      ).toISOString();
+    };
 
-  const { data: eventData, error } = await supabaseAdmin
-    .from('events')
-    .insert({
-      title: model.title ?? 'No title',
-      content: model.content ?? 'No content',
-      startDate: toUTC(model.startDate),
-      endDate: toUTC(model.endDate),
-      creatorId: model.creatorId,
-    })
-    .select()
-    .single();
+    const { data: eventData, error } = await supabaseAdmin
+      .from('events')
+      .insert({
+        title: model.title ?? 'No title',
+        content: model.content ?? 'No content',
+        startDate: toUTC(model.startDate),
+        endDate: toUTC(model.endDate),
+        creatorId: model.creatorId,
+      })
+      .select()
+      .single();
 
-      const attendancesPayload= [...model.invitees, model.creatorId];
-      
-      const attendances = attendancesPayload.map((userId) => ({
-        userid: userId,
-        eventId: eventData.id,
-        status: userId === model.creatorId,
-        created_at: new Date().toISOString(),
-        update_at: null,
+    const attendancesPayload = [...model.invitees, model.creatorId];
 
-      }));
+    const attendances = attendancesPayload.map((userId) => ({
+      userid: userId,
+      eventId: eventData.id,
+      status: userId === model.creatorId,
+      created_at: new Date().toISOString(),
+      update_at: null,
+    }));
 
-      const { error: inviteError } = await supabaseAdmin
-        .from('attendences')
-        .insert(attendances);
-      if (error) {
-        throw new InternalServerErrorException(
-          'Internal Server Error: ' + error.message,
-        );
-      }
-      if (inviteError) {
-        throw new InternalServerErrorException(
-          'Internal Server Error: ' + inviteError.message,
-        );
-      }
-    
+    const { error: inviteError } = await supabaseAdmin
+      .from('attendences')
+      .insert(attendances);
+    if (error) {
+      throw new InternalServerErrorException(
+        'Internal Server Error: ' + error.message,
+      );
+    }
+    if (inviteError) {
+      throw new InternalServerErrorException(
+        'Internal Server Error: ' + inviteError.message,
+      );
+    }
+
+    const notificationPromises = model.invitees.map((userId) =>
+      this.notiService.createNotification({
+        user_id: userId,
+        type: 'event_invite',
+        title: `Bạn được mời tham gia sự kiện "${model.title}"`,
+        content: `${model.content ?? ''}\nThời gian: ${new Date(
+          model.startDate,
+        ).toLocaleString()} - ${new Date(model.endDate).toLocaleString()}`,
+        is_read: false,
+        created_at: new Date(),
+        eventId: eventData.id ?? 0,
+      }),
+    );
+
+    await Promise.all(notificationPromises);
 
     return eventData as CreateEventResponse;
   }
 
   async updateEvent(eventId: number, model: UpdateEventRequest): Promise<void> {
     const toUTC = (date: any) => {
-    const d = new Date(date);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
-  };
+      const d = new Date(date);
+      return new Date(
+        d.getTime() - d.getTimezoneOffset() * 60000,
+      ).toISOString();
+    };
     const { error } = await supabaseAdmin
       .from('events')
       .update({
@@ -183,6 +264,5 @@ export class EventService {
         'Internal Server Error: ' + error.message,
       );
     }
-    
   }
 }

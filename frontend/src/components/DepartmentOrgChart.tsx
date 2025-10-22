@@ -148,26 +148,9 @@ export const DepartmentOrgChart: React.FC<DepartmentOrgChartProps> = ({
         formatter: (params: any) => {
           const d = params.data;
           if (d.name === centerName) return `<strong>${centerName}</strong>`;
-
-          const avatarUrl = d.leader?.avatarUrl
-            ? d.leader.avatarUrl
-            : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                d.leader?.name ?? "N/A"
-              )}&background=random`;
-
           return `
       <div style="min-width:220px">
         <strong>${d.name}</strong><br/>
-        👥 ${d.memberCount} Members<br/>
-        <div style="display:flex;align-items:center;margin-top:6px">
-          <img src="${avatarUrl}" alt="${
-            d.leader?.name
-          }" style="width:36px;height:36px;border-radius:50%;margin-right:8px"/>
-          <div>
-            🧑‍💼 <b>${d.leader?.name ?? "N/A"}</b><br/>
-            🏷️ ${d.leader?.role ?? "N/A"}
-          </div>
-        </div>
       </div>`;
         },
       },

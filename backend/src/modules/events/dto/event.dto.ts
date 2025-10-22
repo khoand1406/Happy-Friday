@@ -7,6 +7,15 @@ export interface EventResponse{
     creatorid: string;
 }
 
+export interface EventResponseT{
+    id: number;
+    title: string;
+    content: string;
+    startDate: Date;
+    endDate: Date;
+    creatorId: string;
+}
+
 export interface EventDetailResponse{
     id: number;
     title: string;

@@ -39,6 +39,8 @@ import {
 import { AVATAR_URL } from "../constraint/LocalStorage";
 import { useUser } from "../context/UserContext";
 import { darkTheme, lightTheme } from "../theme/theme";
+import { getNotifications } from "../services/notification.service";
+import type { NotificationResponse } from "../models/response/notification.response";
 
 const drawerWidth = 240;
 
@@ -57,6 +59,12 @@ export default function MainLayout({
   const [darkMode] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [anchorElNotifications, setanchorNotificationEl] =
+    React.useState<null | HTMLElement>(null);
+  const [notifications, setNotifications] = React.useState<
+    NotificationResponse[]
+  >([]);
+  const [openNotifications, setOpenNotifications] = React.useState(false);
   const open = Boolean(anchorEl);
 
   const navigate = useNavigate();
@@ -65,7 +73,7 @@ export default function MainLayout({
   const { user } = useUser();
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-  
+
   const handleClick = (event: React.MouseEvent<HTMLElement>) =>
     setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
@@ -79,12 +87,49 @@ export default function MainLayout({
     handleClose();
   };
 
+  const handleClickNotifications = (event: React.MouseEvent<HTMLElement>) => {
+    setanchorNotificationEl(event.currentTarget);
+    setOpenNotifications(true);
+  };
+
+  const handleCloseNotifications = () => {
+    setOpenNotifications(false);
+  };
+
   const menuItems = [
     { text: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
     { text: "Members", icon: <PeopleIcon />, path: "/members" },
-    { text: "Calendar", icon: <CalendarMonthOutlinedIcon />, path: "/calendar" },
-    {text: "Settings", icon: <SettingsOutlinedIcon />, path: "/settings"}
+    {
+      text: "Calendar",
+      icon: <CalendarMonthOutlinedIcon />,
+      path: "/calendar",
+    },
+    { text: "Settings", icon: <SettingsOutlinedIcon />, path: "/settings" },
   ];
+
+  React.useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    const fetchNotifications = async () => {
+      try {
+        const data = await getNotifications();
+        setNotifications(data);
+      } catch (error) {
+        console.error("Failed to fetch notifications", error);
+      }
+    };
+
+    if (openNotifications) {
+      fetchNotifications();
+
+      intervalId = setInterval(fetchNotifications, 30000);
+    }
+
+    return () => {
+      if (intervalId)
+        clearInterval(intervalId as ReturnType<typeof setInterval>);
+    };
+  }, [openNotifications]);
 
   const drawer = (
     <Box
@@ -123,7 +168,6 @@ export default function MainLayout({
         })}
       </List>
       <Box flexGrow={1} />
-      
     </Box>
   );
 
@@ -183,20 +227,22 @@ export default function MainLayout({
                   inputProps={{ "aria-label": "search" }}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e)=> {
-                    if(e.key==="Enter" && search.trim()!==""){
-                      navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && search.trim() !== "") {
+                      navigate(
+                        `/search?q=${encodeURIComponent(search.trim())}`
+                      );
                       setSearch("");
                     }
                   }}
                 />
               </Search>
             </Box>
-
-            
-
-            <IconButton size="large" color="inherit" sx={{ color: "#555" }}>
-              <Badge badgeContent={2} color="error">
+            <IconButton onClick={handleClickNotifications}>
+              <Badge
+                badgeContent={notifications.filter((n) => !n.is_read).length}
+                color="error"
+              >
                 <NotificationsNoneIcon />
               </Badge>
             </IconButton>
@@ -327,6 +373,35 @@ export default function MainLayout({
           {children}
         </Box>
       </Box>
+      <Popover
+        open={openNotifications}
+        anchorEl={anchorElNotifications}
+        onClose={handleCloseNotifications}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Box sx={{ p: 2, width: 300 }}>
+          <Typography variant="h6">Notifications</Typography>
+          <Divider sx={{ my: 1 }} />
+          {notifications.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No notifications
+            </Typography>
+          ) : (
+            notifications.map((n) => (
+              <Box key={n.id} sx={{ mb: 1 }}>
+                <Typography fontWeight={n.is_read ? 400 : 600}>
+                  {n.title}
+                </Typography>
+                <Typography variant="body2">{n.content}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(n.created_at).toLocaleString()}
+                </Typography>
+              </Box>
+            ))
+          )}
+        </Box>
+      </Popover>
     </ThemeProvider>
   );
 }
