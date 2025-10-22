@@ -39,15 +39,15 @@ export class UserController {
       return new NotFoundException('User not found');
     }
 
-    const userId = user.sub;
+    const userId = user.id; 
     const result = await this.userServices.getUserProfile(userId);
-    return result as UserProfileResponse;
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('/member-list/:depId')
   async getMemberbyDep(@Param('depId') depId){
-    const result= await this.userServices.GetMembesrByDep(depId);
+    const result= await this.userServices.GetMembersByDep(depId);
     return result;
   }
 

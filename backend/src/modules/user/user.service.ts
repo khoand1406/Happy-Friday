@@ -4,106 +4,144 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { supabase, supabaseAdmin } from 'src/config/database.config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UserEntity } from './user.entity';
+import { RoleEntity } from './role.entity';
 import { ChangePasswordDto } from './dto/change_password.dto';
 import { UpdateUserProfileDTO } from './dto/profile.dto';
 
 @Injectable()
 export class UserService {
-  async getUsersList(){
-    const {data, error}= await supabaseAdmin.from('users_with_dep').select('user_id, name, department_name, avatar_url');
-    if(error){
-      throw new InternalServerErrorException(error.message)
-    }
-    return data;
+  constructor(
+    @InjectRepository(UserEntity) private readonly usersRepo: Repository<UserEntity>,
+    @InjectRepository(RoleEntity) private readonly rolesRepo: Repository<RoleEntity>,
+  ) {}
 
+  async getUsersList() {
+    try {
+      const users = await this.usersRepo.find({
+        select: ['id', 'name', 'avatar_url'],
+        relations: ['department'],
+        order: { name: 'ASC' }
+      })
+      return users.map(user => ({
+        user_id: user.id,
+        name: user.name,
+        avatar_url: user.avatar_url,
+        department_name: user.department?.name || null,
+      }))
+    } catch (e: any) {
+      throw new InternalServerErrorException(e.message)
+    }
   }
 
-
+  // Lấy danh sách nhiều user cùng lúc
   async getProfilesFull(page = 1, perPage = 10) {
-    const from = (page - 1) * perPage;
-    const to = from + perPage - 1;
-
-    const { data, error } = await supabaseAdmin
-      .from('profiles_full')
-      .select('*')
-      .range(from, to);
-
-    if (error) {
-      throw new InternalServerErrorException(error.message);
+    const skip = (page - 1) * perPage
+    try {
+      const [users, total] = await this.usersRepo.findAndCount({
+        relations: ['department', 'role'],
+        order: { name: 'ASC' },
+        skip,
+        take: perPage
+      })
+      return users.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar_url: user.avatar_url,
+        department_name: user.department?.name || null,
+        role_name: user.role?.role_name || null,
+        is_disabled: user.is_disabled,
+      }))
+    } catch (e: any) {
+      throw new InternalServerErrorException(e.message)
     }
-
-    return data;
   }
 
+  // Lấy profile chi tiết của một người dùng cụ thể
   async getUserProfile(userId: string) {
-    const { data, error } = await supabaseAdmin
-      .from('profile_with_projects_json')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error)
-      throw new InternalServerErrorException(
-        'Internal Server Error:' + error.message,
-      );
-    return data;
+    try {
+      const user = await this.usersRepo.findOne({ 
+        where: { id: userId }, 
+        relations: ['department', 'role', 'projectMembers', 'projectMembers.project'] 
+      })
+      if(!user) return null;
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar_url: user.avatar_url,
+        department_name: user.department ? {
+          id: user.department.id,
+          name: user.department.name
+        } : null,
+        role: user.role ? {
+          id: user.role.id,
+          name: user.role.role_name
+        } : null,
+        projects: user.projectMembers?.map(member => ({
+          project_id: member.project.id,
+          project_role: member.project_role,
+          project_name: member.project?.name
+        })) || [],
+        is_disabled: user.is_disabled,
+      }
+    } catch (e: any) {
+      throw new InternalServerErrorException(e.message)
+    }
   }
 
   async UpdateUserProfile(userId: string, payload: UpdateUserProfileDTO) {
-    const { data, error } = await supabaseAdmin
-      .from('users')
-      .update(payload)
-      .eq('id', userId)
-      .select('*')
-      .single();
-
-    if (error)
-      throw new InternalServerErrorException(
-        'Internal Server error: ' + error.message,
-      );
-    if (!data) throw new NotFoundException('User not found');
-
-    return data;
+    const found = await this.usersRepo.findOneOrFail({ where: { id: userId }})
+    if(!found) throw new NotFoundException("User not found")
+    const updated = await this.usersRepo.save({
+      ...found,
+      ...payload
+    })
+    // đây là object spread syntax 
+    // tạo ra 1 thuộc tính mới bằng cách copy các thuộc tính từ found và payload 
+    // found là bản ghi cũ, payload chứa các giá trị cần cập nhật 
+    return updated 
   }
 
-  async GetMembesrByDep(depId: number) {
-    const { data, error } = await supabaseAdmin
-      .from('members_with_dep')
-      .select('*')
-      .eq('department_id', depId);
-    if (error)
-      throw new InternalServerErrorException(
-        'Internal Server Error ' + error.message,
-      );
-    return data;
+  async GetMembersByDep(depId: string) {
+    try {
+      const users = await this.usersRepo.find({
+        where: { department_id: parseInt(depId) },
+        select: ['department'],
+        order: { name: 'ASC' }
+      })
+      return users.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar_url: user.avatar_url,
+        department_name: user.department?.name || null,
+        is_disabled: user.is_disabled,
+      }))
+    } catch (e: any) {
+      throw new InternalServerErrorException(e.message)
+    }
   }
-
+  
   async changePassword(model: ChangePasswordDto) {
-    if (model.newPassword !== model.confirmPassword) {
-      throw new BadRequestException('Passwords do not match');
-    }
-
-    const { error: verifyError } = await supabase.auth.signInWithPassword({
-      email: model.email,
-      password: model.currentPassword,
-    });
-    if (verifyError) {
-      throw new BadRequestException('Current password is incorrect');
-    }
-
-    const { data, error } = await supabase.auth.updateUser({
-      password: model.newPassword,
-    });
-
-    if (error) {
-      throw new BadRequestException(
-        `Change password failed, reason: ${error.message}`,
-      );
-    }
-
-    await supabase.auth.signOut();
-
-    return { message: 'Password changed successfully' };
+    if(model.newPassword !== model.confirmPassword) throw new BadRequestException("New password and confirm password do not match")
+    const user = await this.usersRepo.findOneOrFail({ where: { email: model.email }})
+    if(!user) throw new NotFoundException("User not found")
+    const bcrypt = await import('bcrypt')
+    const ok = user.password_hash ? await bcrypt.compare(model.currentPassword, user.password_hash) : false;
+    if(!ok) throw new BadRequestException("Current password is incorrect")
+    const newHash = await bcrypt.hash(model.newPassword, 10)
+    await this.usersRepo.update({ id: user.id }, { password_hash: newHash })
+    return { message: "Password changed successfully" }
   }
+  
 }
+
+
+

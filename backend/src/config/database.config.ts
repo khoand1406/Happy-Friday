@@ -1,15 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
+import 'reflect-metadata';
+import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
-
 dotenv.config();
-const supabaseUrl= process.env.SUPABASE_URL ?? '';
-const supabaseAnonKey= process.env.SUPABASE_ANON_KEY ?? '';
-const supabaseAdminKey= process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
-if (!supabaseUrl || !supabaseAnonKey || !supabaseAdminKey) {
-  throw new Error('Missing Supabase env variables');
-}
-
-export const supabase= createClient(supabaseUrl, supabaseAnonKey);
-
-export const supabaseAdmin= createClient(supabaseUrl, supabaseAdminKey);
+export const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT || 5432),
+  username: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASS || '',
+  database: process.env.DB_NAME || 'myapp',
+  entities: [__dirname + '/../**/*.entity.{ts,js}'],
+  synchronize: false,
+  logging: false,
+});

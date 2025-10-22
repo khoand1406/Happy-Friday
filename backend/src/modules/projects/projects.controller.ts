@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuard
 import { IsDateString, IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from 'src/common/guard/auth.guard';
 import { AdminGuard } from 'src/common/guard/admin.guard';
-import { ProjectsService } from 'src/modules/projects/projects.service';
+import { ProjectService } from 'src/modules/projects/projects.service';
 
 class CreateProjectDto {
   @IsString()
@@ -56,7 +56,7 @@ class AddMemberDto {
 @UseGuards(JwtAuthGuard)
 @Controller('projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(private readonly projectsService: ProjectService) {}
 
   @Get()
   async list(@Query('page') page = '1', @Query('perpage') perpage = '10', @Query('status') status?: string, @Query('search') search?: string) {

@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { IsEmail, IsOptional, IsString, IsNumber } from 'class-validator';
-import { AccountsService } from './account.service';
+import { AccountService } from './account.service';
 import { JwtAuthGuard } from 'src/common/guard/auth.guard';
 import { AdminGuard } from 'src/common/guard/admin.guard';
 
@@ -48,6 +48,7 @@ class UpdateAccountDto {
 }
 
 class ResetPasswordDto {
+  @IsString()
   newPassword: string;
 }
 
@@ -64,13 +65,13 @@ class ScheduleTransferDto {
   to_department_id: number;
 
   @IsString()
-  effective_date: string; // ISO string
+  effective_date: string; 
 }
 
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('accounts')
 export class AccountsController {
-  constructor(private readonly accountsService: AccountsService) {}
+  constructor(private readonly accountsService: AccountService) {}
 
   @Get()
   async list(@Query('page') page = '1', @Query('perpage') perpage = '10') {
@@ -109,8 +110,8 @@ export class AccountsController {
   }
 
   @Post(':id/reset-password')
-  async resetPassword(@Param('id') id: string, @Body() body: ResetPasswordDto) {
-    return this.accountsService.resetPassword(id, body.newPassword);
+  async resetPassword(@Param('id') id: string, @Body('newPassword') newPassword: string) {
+    return this.accountsService.resetPassword(id, newPassword);
   }
 
   @Delete(':id')

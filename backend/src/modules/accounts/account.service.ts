@@ -1,230 +1,167 @@
-import { Injectable, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
-import { randomBytes } from 'crypto';
-import { supabase, supabaseAdmin } from 'src/config/database.config';
-import { sendMail } from 'src/common/mailer';
+import { Injectable, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common'
+// badrequestexception là mã http 400 cho request sai dữ liệu, thiếu thông tin, 
+// notfoundexception là lỗi 401 không tìm thấy dữ liệu trong db 
+// internalservererrorexception là lỗi 500 server không xác định 
+import { randomBytes } from 'crypto'
+// module crypto dùng đã mã hóa, tạo token, hash mật khẩu, sinh dữ liệu ngẫu nhiên
+// randomBytes để tạo chuỗi bytes ngẫu nhiên
+import { sendMail } from 'src/common/mailer'
+import { InjectRepository } from '@nestjs/typeorm'
+// dùng để inject tiêm 1 repository của 1 entity vào trong service
+import { Repository, SelectQueryBuilder } from 'typeorm'
+// repository đại diện cho 1 bảng trong database có các hàm CRUD dùng để thao tác với dữ liệu
+// selectquerybuilder cho phép viết query linh hoạt hơn khi cần join, filter nâng cao
+import * as bcrypt from 'bcrypt'
+// * as nghĩa là import tất cả các hàm được export từ thư viện bcrypt và đặt tên cho chúng là bcrypt
+import { UserEntity } from '../user/user.entity';
+import { DepartmentEntity } from '../department/department.entity';
+import { DepartmentTransferEntity } from '../department/departmenttransfer.entity';
 
 interface CreateAccountPayload {
-  email: string;
-  password?: string;
-  full_name?: string;
-  phone?: string;
-  role_id?: number;
-  department_id?: number;
+  email: string,
+  password?: string,
+  full_name?: string,
+  phone?: string,
+  role_id?: number,
+  department_id?: number
 }
+// đây là 1 interface trong typescript định nghĩa kiểu dữ liệu cho 1 object 
+// thường dùng để tạo kiểu cho DTO (data transfer object), tạo request body khi api tạo tài khoản, và giúp code an toàn hơn vì typescript kiểm tra kiểu
 
 interface UpdateAccountPayload {
-  full_name?: string;
-  phone?: string;
-  role_id?: number;
-  department_id?: number;
+  full_name?: string,
+  phone?: string,
+  role_id?: number,
+  department_id?: number
 }
 
 @Injectable()
-export class AccountsService {
-  async list(page = 1, perPage = 10) {
-    // Apply any due department transfers before listing
+export class AccountService {
+  constructor(
+   @InjectRepository(UserEntity) private readonly usersRepo: Repository<UserEntity>,
+   @InjectRepository(DepartmentEntity) private readonly deptRepo: Repository<DepartmentEntity>,
+   @InjectRepository(DepartmentTransferEntity) private readonly transferRepo: Repository<DepartmentTransferEntity>,
+  ) {}
+  
+  async list(page = 1, perPage = 5) {
     try {
-      await this.applyDueDepartmentTransfers();
-    } catch (e) {
-      // non-blocking
+      await this.applyDueDepartmentTransfers()
+    } catch(e) { // e là lỗi bị error ném ra
     }
-    const from = (page - 1) * perPage;
-    const to = from + perPage - 1;
-
-    // Lấy danh sách users từ bảng users
-    const { data: users, count, error } = await supabaseAdmin
-      .from('users')
-      .select('id,name,phone,role_id,department_id,avatar_url', { count: 'exact' })
-      .range(from, to);
-    
-    if (error) throw new InternalServerErrorException(error.message);
-
-    // Lấy email từ auth.users cho từng user
-    const userIds = (users || []).map((u: any) => u.id);
-    const idToEmail = new Map<string, string>();
-    const idToDisabled = new Map<string, boolean>();
-    
-    if (userIds.length > 0) {
-      try {
-        // Lấy tất cả auth users
-        const { data: authUsers, error: authErr } = await (supabaseAdmin as any)
-          .auth.admin.listUsers();
-        
-        if (!authErr && authUsers?.users) {
-          authUsers.users.forEach((u: any) => {
-            if (u?.id && userIds.includes(u.id)) {
-              idToEmail.set(u.id, u.email);
-              const bannedUntil = (u as any)?.banned_until || (u as any)?.ban_until || (u as any)?.banExpiresAt;
-              const isDisabled = bannedUntil ? new Date(bannedUntil).getTime() > Date.now() : false;
-              idToDisabled.set(u.id, !!isDisabled);
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('Could not fetch auth users:', e);
-      }
-    }
-
-    // Lấy thông tin department
-    const departmentIds = [...new Set((users || []).map((u: any) => u.department_id).filter(Boolean))];
-    const idToDepartment = new Map<number, string>();
-    
-    if (departmentIds.length > 0) {
-      const { data: departments } = await supabaseAdmin
-        .from('department')
-        .select('id,name')
-        .in('id', departmentIds);
-      
-      (departments || []).forEach((d: any) => {
-        idToDepartment.set(d.id, d.name);
-      });
-    }
-
-    const items = (users || []).map((u: any) => ({
+    const skip = (page - 1) * perPage; 
+    // tính số bản ghi cần bỏ qua để phân trang
+    // vd: page 2 → skip = (2-1)*10 = 10
+    const queryBuilder = this.usersRepo
+      .createQueryBuilder('u') // u là alias cho bảng user
+      // use relation join so TypeORM will load the Department entity into u.department
+      .leftJoinAndSelect('u.department', 'd')
+      .orderBy('u.name', 'ASC') // sắp xếp theo thứ tự tăng dần
+      .addOrderBy('u.id', 'DESC') // nếu trùng id thì sắp xếp theo giảm dần
+      .skip(skip) // bỏ qua các record trước để phân trang 
+      .take(perPage) // giới hạn số bản ghi trả về mỗi Page
+    const [items, total] = await queryBuilder.getManyAndCount()
+    // getManyAndCount dùng để truy vấn dữ liệu có phân trang trả về items danh sách bản ghi tìm thấy cho từng trang và total chứa tổng số bản ghi trong db
+    const formattedItems = items.map((u: any) => ({ // format lại để tránh trả về dữ liệu dư thừa, có vài field không nên trả về như kiểu password 
       id: u.id,
       name: u.name,
       phone: u.phone,
-      email: idToEmail.get(u.id) || null,
-      department_name: idToDepartment.get(u.department_id) || null,
+      email: u.email,
+      department_name: u.department?.name || null,
+      // use loaded relation department.name
       avatar_url: u.avatar_url || null,
-      is_disabled: idToDisabled.get(u.id) ?? false,
-    }));
-
-    return { items, total: typeof count === 'number' ? count : items.length };
+      // normalize dữ liệu vì nếu 1 số field mà null thì sẽ trả về undefined gây lỗi trên crash trên frontend 
+      is_disabled: !!u.is_disabled // ép kiểu boolean sang true/false 
+    })) 
+    return { items: formattedItems, total }
   }
 
   async create(payload: CreateAccountPayload) {
-    if (!payload.email) {
-      throw new BadRequestException('Email is required');
+    if(!payload.email) {
+      throw new BadRequestException('Email is required')
     }
     const passwordToUse = payload.password && payload.password.length >= 6
       ? payload.password
-      : randomBytes(9).toString('base64');
-    // Create auth user using service role (server-side)
-    const { data: created, error: adminErr } = await (supabaseAdmin as any).auth.admin.createUser({
+      : randomBytes(9).toString("base64")
+      // tạo ra 9 bytes binary dữ liệu random và bytes thì không đọc được nên đổi sang dạng chuỗi ngẫu nhiên base64 
+    const exists = await this.usersRepo.findOne({ where: {email: payload.email} })
+    // findOne nghĩa là tìm user có mail giống mail mà client gửi lên 
+    if(exists) throw new BadRequestException("This email has already been registered")
+    const passwordHash = await bcrypt.hash(passwordToUse, 10)
+    // password người dùng nhập + random salt tự được thêm vào để chống trùng hash giữa các mật khẩu giống nhau + salt rounds = 10 là 1024 số vòng tính toán nội bộ 
+    // = hash là kết quả cuối cùng trong database 
+    const newUser = this.usersRepo.create({
       email: payload.email,
-      password: passwordToUse,
-      email_confirm: true,
-    });
-
-    if (adminErr) {
-      // Normalize Supabase messages to concise English
-      let errorMessage = adminErr.message;
-      if (errorMessage.includes('A user with this email address has already been registered')) {
-        errorMessage = 'This email has already been registered';
-      } else if (errorMessage.includes('Invalid email address')) {
-        errorMessage = 'Invalid email address';
-      } else if (errorMessage.includes('Password should be at least')) {
-        errorMessage = 'Password must be at least 6 characters';
-      }
-      throw new BadRequestException(errorMessage);
-    }
-    const userId: string | undefined = created?.user?.id;
-    if (!userId) {
-      throw new InternalServerErrorException('Failed to create auth user');
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('users')
-      .insert({
-        id: userId,
-        name: payload.full_name ?? null,
-        phone: payload.phone,
-        role_id: payload.role_id ?? 2,
-        department_id: payload.department_id ?? null,
-      })
-      .select('*')
-      .single();
-
-    if (error) throw new InternalServerErrorException(error.message);
-    
-    // Send welcome email
+      password_hash: passwordHash,
+      name: payload.full_name ?? null, 
+      phone: payload.phone ?? null,
+      role_id: payload.role_id ?? 2, // 2 ở đây mặc định là user, còn 1 là admin
+      department_id: payload.department_id ?? null
+    })  
+    const created = await this.usersRepo.save(newUser)
     try {
-      await this.sendWelcomeEmail(payload.email, payload.full_name || 'Colleague');
+      await this.sendWelcomeEmail(payload.email, payload.full_name || 'Colleague')
     } catch (emailError) {
-      console.error('[AccountsService] Failed to send welcome email:', emailError);
-      // Don't throw error - account creation should succeed even if email fails
+      console.error("[AccountsService] Failed to send welcome email:", emailError)
     }
-    
-    return data;
+    return created
   }
 
   async update(userId: string, payload: UpdateAccountPayload) {
-    const { data, error } = await supabaseAdmin
-      .from('users')
-      .update({
-        name: payload.full_name,
-        phone: payload.phone,
-        role_id: payload.role_id,
-        department_id: payload.department_id,
-      })
-      .eq('id', userId)
-      .select('*')
-      .single();
-
-    if (error) throw new InternalServerErrorException(error.message);
-    if (!data) throw new NotFoundException('User not found');
-    return data;
+    const found = await this.usersRepo.findOneOrFail({where:{id: userId}})
+    if(payload.full_name !== undefined) found.name = payload.full_name
+    if (payload.phone !== undefined) found.phone = payload.phone;
+    if (payload.role_id !== undefined) found.role_id = payload.role_id;
+    if (payload.department_id !== undefined) found.department_id = payload.department_id;
+    // field ở FE ko gửi data lên thì nó là undefined
+    const saved = await this.usersRepo.save(found)
+    return saved
   }
 
   async updateByEmail(email: string, payload: UpdateAccountPayload) {
-    // Email không có ở bảng users -> tra id từ view profiles_full rồi update theo id
-    const { data: found, error: findErr } = await supabaseAdmin
-      .from('profiles_full')
-      .select('*')
-      .eq('email', email)
-      .single();
-
-    if (findErr) throw new InternalServerErrorException(findErr.message);
-    const uid = (found as any)?.id ?? (found as any)?.user_id ?? (found as any)?.uid ?? (found as any)?.UUID ?? (found as any)?.sub;
-    if (!uid) throw new NotFoundException('User not found');
-
-    return this.update(uid, payload);
+    const found = await this.usersRepo.findOneOrFail({ where: { email } });
+    return this.update(found.id, payload);
   }
 
   async disable(userId: string) {
-    const { error } = await (supabaseAdmin as any).auth.admin.updateUserById(userId, {
-      ban_duration: '876000h',
-    } as any);
-    if (error) throw new InternalServerErrorException(error.message);
+    await this.usersRepo.findOneOrFail({ where: { id: userId } });
+    // findOne khi không tìm thấy thì trả về null còn findOneOrFail thì ném luôn lỗi EntityNotFoundError
+    await this.usersRepo.update({ id: userId }, { is_disabled: true });
     return { message: 'User disabled' };
   }
 
   async enable(userId: string) {
-    const { error } = await (supabaseAdmin as any).auth.admin.updateUserById(userId, {
-      ban_duration: 'none',
-    } as any);
-    if (error) throw new InternalServerErrorException(error.message);
+    await this.usersRepo.findOneOrFail({ where: { id: userId } });
+    await this.usersRepo.update({ id: userId }, { is_disabled: false });
     return { message: 'User enabled' };
   }
-
+  
   async banWithDuration(userId: string, hours: number) {
-    const safeHours = Math.max(1, Math.floor(hours || 1));
-    const { error } = await (supabaseAdmin as any).auth.admin.updateUserById(userId, {
-      ban_duration: `${safeHours}h`,
-    } as any);
-    if (error) throw new InternalServerErrorException(error.message);
-    return { message: `User banned for ${safeHours} hours` };
+    const safeHours = Math.max(1, Math.floor(hours || 1))
+    // Math.max so sánh 2 số và lấy số lớn hơn
+    // Math.floor làm tròn xuống số nguyên gần nhất
+    await this.usersRepo.findOneOrFail({ where: { id: userId} })
+    await this.usersRepo.update( {id: userId}, { is_disabled: true} )
+    return { message: `User banned for ${safeHours} hour` }
   }
 
   async remove(userId: string) {
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (error) throw new InternalServerErrorException(error.message);
-
-    const { error: dbError } = await supabaseAdmin
-      .from('users')
-      .delete()
-      .eq('id', userId);
-    if (dbError) throw new InternalServerErrorException(dbError.message);
+    await this.usersRepo.findOneOrFail({ where: { id: userId } });
+    await this.usersRepo.delete({ id: userId });
     return { message: 'User deleted' };
   }
 
   async resetPassword(userId: string, newPassword: string) {
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      password: newPassword,
-    });
-    if (error) throw new InternalServerErrorException(error.message);
-    return { message: 'Password reset successfully' };
+    try {
+      await this.usersRepo.findOneOrFail({ where: {id: userId} })
+      if(typeof newPassword !== 'string' || newPassword.trim().length < 6) {
+        throw new BadRequestException("Password must be at least 6 characters")
+      }
+      const password_hash = await bcrypt.hash(newPassword.trim(), 10)
+      await this.usersRepo.update({id: userId}, { password_hash })
+    } catch (err) {
+      console.error("[AccountsService.resetpassword] error", err)
+      throw err
+    }
   }
 
   async importAccounts(accounts: CreateAccountPayload[]) {
@@ -232,107 +169,88 @@ export class AccountsService {
       success: 0,
       failed: 0,
       errors: [] as string[]
-    };
+    }
 
-    for (const account of accounts) {
+    for(const account of accounts) {
       try {
-        await this.create(account);
-        results.success++;
-      } catch (error) {
-        results.failed++;
-        results.errors.push(`${account.email}: ${error.message}`);
+       await this.create(account) 
+       results.success++
+       // this ở đây là đại diện cho cả class AccountService, nó cùng hàm create() ở trong service
+      } catch(error) {
+        results.failed++
+        results.errors.push(`${account.email} : ${error.message}`)
       }
     }
-
-    return results;
+    return results
   }
 
-  // ===== Department transfer (scheduled) =====
   async scheduleDepartmentTransfer(userId: string, toDepartmentId: number, effectiveDateISO: string) {
-    // Fetch current department
-    const { data: current, error: curErr } = await supabaseAdmin
-      .from('users')
-      .select('department_id')
-      .eq('id', userId)
-      .single();
-    if (curErr) throw new InternalServerErrorException(curErr.message);
-    const fromDepartmentId = (current as any)?.department_id ?? null;
-
-    // Convert Vietnam time (UTC+7) to UTC for database storage
-    const vietnamDate = new Date(effectiveDateISO);
-    const utcDate = new Date(vietnamDate.getTime() + (7 * 60 * 60 * 1000)); // Add 7 hours to get UTC
-
-    // Insert schedule
-    const { data, error } = await supabaseAdmin
-      .from('department_transfers')
-      .insert({
-        user_id: userId,
-        from_department_id: fromDepartmentId,
-        to_department_id: toDepartmentId,
-        effective_date: utcDate.toISOString(),
-        status: 'scheduled',
-      } as any)
-      .select('*')
-      .single();
-    if (error) throw new InternalServerErrorException(error.message);
-
-    // If effective date already reached (Vietnam time), apply immediately
-    if (vietnamDate.getTime() <= Date.now()) {
+    const current = await this.usersRepo.findOneOrFail({ where: { id: userId }})
+    const fromDepartmentId = current.department_id ?? null
+    const parsed = new Date(effectiveDateISO)  // tạo đối tượng date
+    if(Number.isNaN(parsed.getTime())) {
+      // getTime() đổi thời gian sang miliseconds để kiểm tra tính hợp lệ của thời gian và trả về NaN (Not a number)
+      throw new BadRequestException("Invalid effectiveDateISO")
+    }
+    const hasOffset = /[zZ]|[+\-]\d{2}:\d{2}$/.test(effectiveDateISO)
+    // kiểm tra xem múi giờ có chứa timezone offset hay ko là độ chêch lệch múi giờ
+    // .test(effectiveDateISO) giúp trả về true nếu nếu chuỗi effectiveDateISO khớp với chuỗi Regex
+    const storedUTC = hasOffset ? parsed : new Date(parsed.getTime() - 7 * 60 * 60 * 1000) 
+    // xử lí trường hợp effectiveDateISO truyền vào không có múi giờ, tự hiểu là giờ vn thì trừ đi 7 để lưu đồng nhất nhất giờ UTC vào db
+    const transfer = this.transferRepo.create({
+      user_id: userId,
+      from_department_id: fromDepartmentId,
+      to_department_id: toDepartmentId,
+      effective_date: storedUTC,
+      status: 'scheduled'
+    })
+    const saved = await this.transferRepo.save(transfer)
+    if(storedUTC.getTime() <= Date.now()) {
       await this.applyDueDepartmentTransfersForUser(userId);
     }
-    return data;
+    return saved
   }
 
   async applyDueDepartmentTransfers(): Promise<{ applied: number }> {
-    // Get all scheduled transfers
-    const { data: allScheduled, error } = await supabaseAdmin
-      .from('department_transfers')
-      .select('id,user_id,to_department_id,effective_date,status')
-      .eq('status', 'scheduled');
-    if (error) throw new InternalServerErrorException(error.message);
-    const transfers = allScheduled || [];
-
-    let applied = 0;
-    const now = Date.now();
-    
-    for (const t of transfers as any[]) {
+    const transfers = await this.transferRepo.find({where: {status: 'scheduled'}})
+    let applied = 0
+    const now = Date.now()
+    for(const transfer of transfers) {
       try {
-        // Convert UTC effective_date back to Vietnam time for comparison
-        const utcEffectiveDate = new Date(t.effective_date);
-        const vietnamEffectiveDate = new Date(utcEffectiveDate.getTime() - (7 * 60 * 60 * 1000)); // Subtract 7 hours to get Vietnam time
-        
-        // Check if Vietnam time has reached the effective date
-        if (vietnamEffectiveDate.getTime() <= now) {
-          await supabaseAdmin.from('users').update({ department_id: t.to_department_id }).eq('id', t.user_id);
-          await supabaseAdmin.from('department_transfers').update({ status: 'applied' }).eq('id', t.id);
+        if (!transfer.effective_date) {
+          // Skip transfers without an effective date (data inconsistency)
+          continue;
+        }
+        const utcEffectiveDate = new Date(transfer.effective_date);
+        const vietnamEffectiveDate = new Date(utcEffectiveDate.getTime() + (7 * 60 * 60 * 1000));
+        if(vietnamEffectiveDate.getTime() <= now) {
+          await this.usersRepo.update({id: transfer.user_id}, {department_id: transfer.to_department_id});
+          await this.transferRepo.update({id: transfer.id}, {status: 'applied'});
           applied++;
         }
-      } catch (e) {
-        // continue next
+      } catch(e) {
+        console.error(e);
       }
     }
-    return { applied };
+    return  {applied}
   }
 
   private async applyDueDepartmentTransfersForUser(userId: string): Promise<void> {
-    const { data: allScheduled, error } = await supabaseAdmin
-      .from('department_transfers')
-      .select('id,user_id,to_department_id,effective_date,status')
-      .eq('status', 'scheduled')
-      .eq('user_id', userId);
-    if (error) throw new InternalServerErrorException(error.message);
-    const transfers = allScheduled || [];
+    const transfers = await this.transferRepo.find({
+      where: { 
+        status: 'scheduled',
+        user_id: userId 
+      }
+    });
     
     const now = Date.now();
-    for (const t of transfers as any[]) {
-      // Convert UTC effective_date back to Vietnam time for comparison
-      const utcEffectiveDate = new Date(t.effective_date);
-      const vietnamEffectiveDate = new Date(utcEffectiveDate.getTime() - (7 * 60 * 60 * 1000)); // Subtract 7 hours to get Vietnam time
-      
-      // Check if Vietnam time has reached the effective date
+    for (const transfer of transfers) {
+      if (!transfer.effective_date) continue; // skip if null
+      const utcEffectiveDate = new Date(transfer.effective_date);
+      const vietnamEffectiveDate = new Date(utcEffectiveDate.getTime() + (7 * 60 * 60 * 1000)); 
       if (vietnamEffectiveDate.getTime() <= now) {
-        await supabaseAdmin.from('users').update({ department_id: t.to_department_id }).eq('id', t.user_id);
-        await supabaseAdmin.from('department_transfers').update({ status: 'applied' }).eq('id', t.id);
+        await this.usersRepo.update({ id: transfer.user_id }, { department_id: transfer.to_department_id });
+        await this.transferRepo.update({ id: transfer.id }, { status: 'applied' });
       }
     }
   }
@@ -375,7 +293,9 @@ export class AccountsService {
       `
     });
   }
+
 }
+
 
 
 

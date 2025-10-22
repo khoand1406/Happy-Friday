@@ -1,335 +1,252 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { supabaseAdmin } from 'src/config/database.config';
-import { sendMail } from 'src/common/mailer';
+import { Injectable, InternalServerErrorException, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common'
+import { sendMail } from 'src/common/mailer'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { UserEntity } from '../user/user.entity'
+import { ProjectEntity } from './project.entity'
+import { ProjectMemberEntity } from './projectmember.entity'
+import { ProjectUpdateEntity } from './projectupdate.entity'
+
+// đây là 1 hàm phụ trợ helper function để tìm project theo uuid
+async function findProjectById(projectsRepo: Repository<ProjectEntity>, id: string): Promise<ProjectEntity | null> {
+  const project = await projectsRepo.findOne({ where: { uuid: id }})
+  if(project) return project
+  return null 
+}
 
 interface ListFilter {
-  status?: string;
-  search?: string;
+  status?: string
+  search?: string
 }
 
 @Injectable()
-export class ProjectsService {
-  // get list projects
+export class ProjectService {
+  constructor(
+    @InjectRepository(UserEntity) private readonly usersRepo: Repository<UserEntity>,
+    @InjectRepository(ProjectEntity) private readonly projectsRepo: Repository<ProjectEntity>,
+    @InjectRepository(ProjectMemberEntity) private readonly projectMembersRepo: Repository<ProjectMemberEntity>,
+    @InjectRepository(ProjectUpdateEntity) private readonly projectUpdatesRepo: Repository<ProjectUpdateEntity>
+  ) {}
+
   async list(page = 1, perPage = 10, filter: ListFilter = {}) {
-    const from = (page - 1) * perPage;
-    const to = from + perPage - 1;
+    // = {} là default value cho filter
+    // gọi hàm ko truyền filter thì nó mặc định là rỗng 
+    const skip = (page - 1) * perPage
+    try {
+     const queryBuilder = this.projectsRepo.createQueryBuilder("project")
+     // tạo 1 đối tượng queryBuilder để truy vấn dữ liệu trong bảng project 
+     if(filter.status) {
+      queryBuilder.andWhere('project.status = :status', { status: filter.status })
+     }
+     if(filter.search) {
+      queryBuilder.andWhere('project.name ILIKE :search OR project.description ILIKE :search', { search: `%${filter.search}%`})
+     }
 
-  // Build query with select (request exact count) then apply filters
-  let query: any = supabaseAdmin.from('projects').select('*', { count: 'exact' });
-  if (filter.status) query = query.eq('status', filter.status);
-  if (filter.search) {
-    // Tìm kiếm trong cả name và description
-    query = query.or(`name.ilike.%${filter.search}%,description.ilike.%${filter.search}%`);
+     const [items, total] = await queryBuilder
+       .orderBy('project.created_at', 'DESC')
+       .addOrderBy('project.name', 'ASC')
+       .skip(skip)
+       .take(perPage)
+       .getManyAndCount()
+     return { items, total }
+    } catch ( e: any) {
+      throw new InternalServerErrorException(e.message)
+    }
   }
 
-  // Use count: 'exact' to get total rows and paginate
-  const { data, count, error } = await query.range(from, to);
-    if (error) throw new InternalServerErrorException(error.message);
-
-    return { items: data || [], total: typeof count === 'number' ? count : (data || []).length };
-  }
-
-  // get project detail
   async detail(id: string) {
-    const { data: project, error } = await supabaseAdmin
-      .from('projects')
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (error) throw new InternalServerErrorException(error.message);
-    if (!project) throw new NotFoundException('Project not found');
-
-    // 1) Lấy danh sách member thô từ bảng project_members
-    const { data: rawMembers, error: membersError } = await supabaseAdmin
-      .from('project_members')
-      .select('user_id, project_id, project_role')
-      .eq('project_id', id);
-    if (membersError) throw new InternalServerErrorException(membersError.message);
-
-    // 2) Truy vấn thông tin user từ bảng public.users
-    const memberIds = (rawMembers || []).map((m: any) => m.user_id);
-    const { data: profiles, error: profilesError } = memberIds.length
-      ? await supabaseAdmin
-          .from('users')
-          .select('id, name, phone, avatar_url, department_id')
-          .in('id', memberIds)
-      : { data: [], error: null } as any;
-    if (profilesError) throw new InternalServerErrorException(profilesError.message);
-
-    // 3) Truy vấn thông tin phòng ban
-    const departmentIds = [...new Set((profiles || []).map((p: any) => p.department_id).filter(Boolean))];
-    const { data: departments, error: departmentsError } = departmentIds.length
-      ? await supabaseAdmin
-          .from('department')
-          .select('id, name')
-          .in('id', departmentIds)
-      : { data: [], error: null } as any;
-    if (departmentsError) throw new InternalServerErrorException(departmentsError.message);
-
-    // 4) Lấy updates song song
-    const { data: updatesData, error: updatesError } = await supabaseAdmin
-      .from('project_updates')
-      .select('*')
-      .eq('project_id', id)
-      .order('created_at', { ascending: false });
-    if (updatesError) throw new InternalServerErrorException(updatesError.message);
-
-    // Format members data để match với frontend
-    const idToProfile = new Map<string, any>();
-    (profiles || []).forEach((p: any) => idToProfile.set(p.id, p));
-
-    const idToDepartment = new Map<number, any>();
-    (departments || []).forEach((d: any) => idToDepartment.set(d.id, d));
-
-    const formattedMembers = (rawMembers || []).map((m: any) => {
-      const p = idToProfile.get(m.user_id) || {};
-      const department = p.department_id ? idToDepartment.get(p.department_id) : null;
-      return {
-        id: p.id || m.user_id,
-        name: p.name || null,
-        phone: p.phone || null,
-        avatar_url: p.avatar_url || null,
-        email: null, // Không có email trong public.users
-        department_name: department?.name || null,
-        project_role: m.project_role,
-        project_id: m.project_id,
-      };
-    });
-
-    return { project, members: formattedMembers, updates: updatesData };
+    // @Param('id) luôn trả về string, vì URL/HTTP query parameters luôn luôn là chuỗi
+    try {
+      const project = await findProjectById(this.projectsRepo, id)
+      // this.projectsRepo: là repository của entity ProjectEntity
+      if(!project) throw new NotFoundException("Project not found")
+      const members = await this.projectMembersRepo.find({ where: {project_id: project.id}, relations: ['user', 'user.department']})
+      // Mỗi ProjectMember có quan hệ ManyToOne với User (member.user)
+      // Mỗi User có quan hệ ManyToOne với Department (user.department)
+      // dùng relations để lấy đầy đủ dữ liệu của user và department
+      const updates = await this.projectUpdatesRepo.find({ where: {project_id: project.id}, order: { created_at: 'DESC' }})
+      const formattedMembers = members.map(member => ({
+        id: member.user.id,
+        name: member.user.name,
+        phone: member.user.phone,
+        avatar_url: member.user.avatar_url,
+        email: member.user.email,
+        department_name: member.user.department?.name || null,
+        project_role: member.project_role,
+        project_id: member.project_id
+      }))
+      return { project, members: formattedMembers, updates }
+    } catch (e: any) {
+      throw new InternalServerErrorException(e.message)
+    }
   }
 
-  // create projects 
-  async create(payload: { name: string; description: string; status: string; start_date?: string; end_date?: string }) {
-    const { data, error } = await supabaseAdmin
-      .from('projects')
-      .insert({
+  async create(payload: {name: string, description: string, status: string, start_date?: string, end_date?: string}) {
+    try {
+      const project = this.projectsRepo.create({
         name: payload.name,
         description: payload.description,
         status: payload.status,
         start_date: payload.start_date ? new Date(payload.start_date) : null,
-        end_date: payload.end_date ? new Date(payload.end_date) : null
-      } as any)
-      .select('*')
-      .single();
-    if (error) throw new InternalServerErrorException(error.message);
-    return data;
+        end_date: payload.end_date ? new Date(payload.end_date) : null,
+        uuid: require('crypto').randomUUID() // Generate UUID for new projects
+        // toán tử 3 ngôi nếu có payload.start_date thì new Date(payload.start_date) ngược lại null
+      })
+      return await this.projectsRepo.save(project)
+    } catch (e: any) {
+      throw new InternalServerErrorException(e.message)
+      // TypeScript không thể đảm bảo lỗi luôn là một Error object — đôi khi nó có thể là string, number, object tuỳ vào code của dev 
+    }
   }
 
-  // update projects 
-  async update(id: string, payload: { name?: string; description?: string; status?: string; start_date?: string; end_date?: string }) {
-    console.log('[ProjectsService] Update called with:', { id, payload });
-    
-    // Filter out undefined values to avoid Supabase errors
-    const updateData: any = {};
-    if (payload.name !== undefined) updateData.name = payload.name;
-    if (payload.description !== undefined) updateData.description = payload.description;
-    if (payload.status !== undefined) updateData.status = payload.status;
-    if (payload.start_date !== undefined) updateData.start_date = payload.start_date ? new Date(payload.start_date) : null;
-    if (payload.end_date !== undefined) updateData.end_date = payload.end_date ? new Date(payload.end_date) : null;
-
-    console.log('[ProjectsService] Update data:', updateData);
-
-    const { data, error } = await supabaseAdmin
-      .from('projects')
-      .update(updateData)
-      .eq('id', id)
-      .select('*')
-      .single();
-    
-    console.log('[ProjectsService] Supabase response:', { data, error });
-    
-    if (error) {
-      console.error('[ProjectsService] Supabase error:', error);
-      throw new InternalServerErrorException(error.message);
-    }
-    if (!data) throw new NotFoundException('Project not found');
-    return data;
+  async update(id: string, payload: {name?: string, description?: string, status?: string, start_date?: string, end_date?: string}) {
+    const project = await findProjectById(this.projectsRepo, id);
+    if(!project) throw new NotFoundException("Project not found")
+    const updateData: any = {}
+    // đây là 1 object trống ban đầu
+    // gán kiểu any để thêm bất kì key sau này ko bị lỗi thuộc tính mới
+    if(payload.name !== undefined) updateData.name = payload.name
+    if(payload.description !== undefined) updateData.description = payload.description
+    if(payload.status !== undefined) updateData.status = payload.status
+    if(payload.start_date !== undefined) updateData.start_date = payload.start_date ? new Date(payload.start_date) : null
+    if(payload.end_date !== undefined) updateData.end_date = payload.end_date ? new Date(payload.end_date) : null
+    Object.assign(project, updateData)
+    // Object.assign(target, source)
+    // target là object gốc, nơi muốn ghi đè hoặc gộp dữ liệu
+    // source object chứa dữ liệu mới để chép vào
+    // ở đây là gộp tất cả thuộc tính từ updateData sang project nếu trùng key thì ghi đè giá trị mới
+    const updatedProject = await this.projectsRepo.save(project)
+    return updatedProject
   }
 
   async remove(id: string) {
-    console.log('[ProjectsService] Delete called with id:', id);
-    
-    const { error } = await supabaseAdmin.from('projects').delete().eq('id', id);
-    
-    console.log('[ProjectsService] Delete response:', { error });
-    
-    if (error) {
-      console.error('[ProjectsService] Delete error:', error);
-      throw new InternalServerErrorException(error.message);
-    }
-    return { message: 'Project deleted' };
+    const project = await findProjectById(this.projectsRepo, id);
+    if(!project) throw new NotFoundException("Project not found")
+    const result = await this.projectsRepo.delete({ id: project.id })
+    if(result.affected === 0) throw new NotFoundException("Project not found")
+    // result.affected chính là số lượng bản ghi rows trong cơ sở dữ liệu bị xóa thành công 
+    return { message: 'Project deleted', id: project.id }
   }
 
-  // --- FEED / UPDATES ---
+  // tabfeeds cho 1 project cụ thể 
   async listUpdates(projectId: string) {
-    const { data, error } = await supabaseAdmin
-      .from('project_updates')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
-    if (error) throw new InternalServerErrorException(error.message);
-    return data;
-  }
-
-  async createUpdate(projectId: string, authorId: string, payload: { title: string; content: string }) {
-    // Chỉ cho phép nếu user là thành viên của project
-    const { data: member, error: memberErr } = await supabaseAdmin
-      .from('project_members')
-      .select('id, user_id, project_id, project_role')
-      .eq('project_id', projectId)
-      .eq('user_id', authorId)
-      .single();
-    if (memberErr || !member) {
-      throw new NotFoundException('You are not a member of this project');
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('project_updates')
-      .insert({
-        project_id: Number(projectId),
-        title: payload.title,
-        content: payload.content,
-      } as any)
-      .select('*')
-      .single();
-    if (error) throw new InternalServerErrorException(error.message);
-    return data;
-  }
-
-  // --- STATUS UPDATE (PM/Owner) ---
-  async updateStatus(projectId: string, userId: string, status: string) {
-    // Kiểm tra vai trò: Project Manager/Owner mới được đổi status
-    const { data: member, error: memberErr } = await supabaseAdmin
-      .from('project_members')
-      .select('project_role')
-      .eq('project_id', projectId)
-      .eq('user_id', userId)
-      .single();
-    if (memberErr || !member) {
-      throw new NotFoundException('You are not a member of this project');
-    }
-    const role = String((member as any).project_role || '').toLowerCase();
-    const canUpdate = role === 'project manager' || role === 'owner' || role === 'pm';
-    if (!canUpdate) {
-      throw new NotFoundException('Insufficient permission to update project status');
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('projects')
-      .update({ status })
-      .eq('id', projectId)
-      .select('*')
-      .single();
-    if (error) throw new InternalServerErrorException(error.message);
-
-    return data;
-  }
-
-  // --- MEMBER MANAGEMENT ---
-  async addMember(projectId: string, userId: string, projectRole: string) {
-    // Kiểm tra xem user đã là thành viên chưa
-    const { data: existingMember } = await supabaseAdmin
-      .from('project_members')
-      .select('id')
-      .eq('project_id', projectId)
-      .eq('user_id', userId)
-      .single();
-
-    if (existingMember) {
-      throw new InternalServerErrorException('User is already a member of this project');
-    }
-
-    // Thêm thành viên mới
-    const { data, error } = await supabaseAdmin
-      .from('project_members')
-      .insert({
-        project_id: Number(projectId),
-        user_id: userId,
-        project_role: projectRole
-      } as any)
-      .select('*')
-      .single();
-
-    if (error) throw new InternalServerErrorException(error.message);
-    
-    // Lấy thông tin dự án và email user để gửi thông báo
     try {
-      const [{ data: project }, authList] = await Promise.all([
-        supabaseAdmin.from('projects').select('id,name,description,status,start_date,end_date').eq('id', projectId).single(),
-        (supabaseAdmin as any).auth.admin.listUsers()
-      ]);
+      const project = await findProjectById(this.projectsRepo, projectId);
+      if(!project) throw new NotFoundException("Project not found")
+      return await this.projectUpdatesRepo.find({
+        where: { project_id: project.id },
+        order: { created_at: 'DESC' }
+      })
+    } catch (e: any) {
+      throw new InternalServerErrorException(e.message)
+      // đại diện cho lỗi server như kiểu lỗi db, query
+    }
+  }
 
-      const authUsers = (authList?.data?.users || authList?.users) as any[] | undefined;
-      const target = (authUsers || []).find((u: any) => u?.id === userId);
-      const email = target?.email;
+  async updateStatus(projectId: string, userId: string,status: string) {
+    const project = await findProjectById(this.projectsRepo, projectId);
+    if(!project) throw new NotFoundException("Project not found")
+    const member = await this.projectMembersRepo.findOne({ where: { project_id: project.id, user_id: userId }})
+    if(!member) throw new NotFoundException("You are not a member of this project")
+    const role = String(member.project_role).toLowerCase()
+    const canUpdate = role === 'owner' || role === 'project manager'
+    if(!canUpdate) throw new ForbiddenException("You are not authorized to update the status of this project")
+    project.status = status
+    return await this.projectsRepo.save(project)
+  }
 
-      if (email) {
-        const startDate = project?.start_date ? new Date(project.start_date).toLocaleDateString() : undefined;
-        const endDate = project?.end_date ? new Date(project.end_date).toLocaleDateString() : undefined;
-        const dateStr = startDate && endDate ? `Thời gian: ${startDate} - ${endDate}` : '';
-
+  async addMember(projectId: string, userId: string, projectRole: string) {
+    const project = await findProjectById(this.projectsRepo, projectId);
+    if(!project) throw new NotFoundException("Project not found")
+    const existing = await this.projectMembersRepo.findOne({ where: { project_id: project.id, user_id: userId }})
+    if(existing) throw new ConflictException("User is already a member of this project")
+    const member = this.projectMembersRepo.create({
+      project_id: project.id,
+      user_id: userId,
+      project_role: projectRole
+    })
+    const savedMember = await this.projectMembersRepo.save(member)
+    try {
+      const [projectData, user] = await Promise.all([
+        // Promise.add([]) chạy 2 lời gọi bất đồng bộ cùng 1 lúc và đợi cả 2 hoàn thành nhanh hơn so với await a; await b;
+        this.projectsRepo.findOne({ where: { id: project.id} }),
+        this.usersRepo.findOne({ where: { id: userId }})
+      ])
+      const email = user?.email?.trim()
+      if(email && projectData) {
+        const startDate = projectData.start_date ? String(projectData.start_date).slice(0, 10) : undefined
+        const endDate = projectData.end_date ? String(projectData.end_date).slice(0, 10) : undefined
+        const dateStr = startDate && endDate ? `Thời gian: ${startDate} - ${endDate}` : ''
         await sendMail({
           to: email,
-          subject: `[Happy Friday] Bạn đã được thêm vào dự án ${project?.name || ''}`,
+          subject: `[Happy Friday] Bạn đã được thêm vào dự án ${projectData.name || ''}`,
           html: `
             <div style="font-family: system-ui, Arial, sans-serif;">
               <h2>Chào bạn,</h2>
-              <p>Bạn vừa được thêm vào dự án <b>${project?.name || ''}</b> với vai trò <b>${projectRole}</b>.</p>
-              <p>${project?.description || ''}</p>
+              <p>Bạn vừa được thêm vào dự án <b>${projectData.name || ''}</b> với vai trò <b>${projectRole}</b>.</p>
+              <p>${projectData.description || ''}</p>
               <p>${dateStr}</p>
               <p>Truy cập hệ thống để xem chi tiết.</p>
               <hr/>
               <small>Đây là email tự động, vui lòng không trả lời.</small>
             </div>
           `,
-          text: `Ban da duoc them vao du an ${project?.name || ''} voi vai tro ${projectRole}. ${project?.description || ''}`,
-        });
+          text: `Ban da duoc them vao du an ${projectData.name || ''} voi vai tro ${projectRole}. ${projectData.description || ''}`,
+        })
       } else {
-        console.warn('[ProjectsService] Could not resolve email for user:', userId);
+        console.log('Count not send email for users:', userId)
       }
     } catch (mailErr) {
-      console.warn('[ProjectsService] Send mail failed (non-blocking):', mailErr);
+      console.warn('Send main failed', mailErr)
     }
-
-    return data;
+    return savedMember
   }
 
   async removeMember(projectId: string, userId: string) {
-    const { error } = await supabaseAdmin
-      .from('project_members')
-      .delete()
-      .eq('project_id', projectId)
-      .eq('user_id', userId);
+    const project = await findProjectById(this.projectsRepo, projectId);
+    if(!project) throw new NotFoundException("Project not found")
+    const result = await this.projectMembersRepo.delete({ project_id: project.id, user_id: userId })
+    if(result.affected === 0) return { message: 'Member already removed or not found' }
+    return { message: 'Member removed successfully', projectId: project.id, userId: userId }
+  }  
 
-    if (error) throw new InternalServerErrorException(error.message);
-    return { message: 'Member removed from project' };
+  async updateProjectUpdate(projectId: string, updateId: string, payload: any) {
+    const project = await findProjectById(this.projectsRepo, projectId);
+    if(!project) throw new NotFoundException("Project not found")
+    const update = await this.projectUpdatesRepo.findOne({ where: { id: parseInt(updateId), project_id: project.id }})
+    if(!update) throw new NotFoundException("Update not found")
+    update.title = payload.title
+    // vì payload có :any nên cho phép truyền bao nhiêu thuộc tính cũng được 
+    update.content = payload.content
+    await this.projectUpdatesRepo.save(update)
+    return { message: 'Update updated successfully', id: parseInt(updateId) }
+  }
+
+  async createUpdate(projectId: string, authorId: string | null, payload: { title: string; content: string }) {
+    try {
+      const project = await findProjectById(this.projectsRepo, projectId);
+      if (!project) throw new NotFoundException('Project not found')
+      const update = this.projectUpdatesRepo.create({
+        project_id: project.id,
+        title: payload.title,
+        content: payload.content,
+        author_id: authorId || null,
+      })
+      return await this.projectUpdatesRepo.save(update)
+    } catch (e: any) {
+      throw new InternalServerErrorException(e.message)
+    }
   }
 
   async removeUpdate(projectId: string, updateId: string) {
-    const { error } = await supabaseAdmin
-      .from('project_updates')
-      .delete()
-      .eq('project_id', projectId)
-      .eq('id', updateId);
-
-    if (error) throw new InternalServerErrorException(error.message);
-    return { message: 'Update removed from project' };
-  }
-
-  async updateProjectUpdate(projectId: string, updateId: string, payload: any) {
-    const { error } = await supabaseAdmin
-      .from('project_updates')
-      .update({
-        title: payload.title,
-        content: payload.content
-      })
-      .eq('project_id', projectId)
-      .eq('id', updateId);
-
-    if (error) throw new InternalServerErrorException(error.message);
-    return { message: 'Update updated successfully' };
+    const project = await findProjectById(this.projectsRepo, projectId);
+    if(!project) throw new NotFoundException("Project not found")
+    const result = await this.projectUpdatesRepo.delete({ id: parseInt(updateId), project_id: project.id })
+    if (result.affected === 0) throw new NotFoundException('Update not found')
+    return { message: 'Update removed successfully', id: parseInt(updateId) }
   }
 }
+
+
 
 

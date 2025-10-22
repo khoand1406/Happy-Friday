@@ -190,12 +190,13 @@ export const AdminDashboard: React.FC = () => {
     
     try {
       await deleteProject(deleteProjectDialog.id);
-      setDeleteProjectDialog(null);
-      await loadProjects(); // Reload projects list
       toast.success('Project deleted');
     } catch (error) {
       console.error('Error deleting project:', error);
       toast.error('Failed to delete project');
+    } finally {
+      setDeleteProjectDialog(null);
+      await loadProjects(); // Always refresh list
     }
   };
 
@@ -913,7 +914,12 @@ const ProjectsTable: React.FC<{ items: ProjectItem[]; onReload: ()=>void; onDele
               }}
             />
             <Typography>
-              {p.start_date && p.end_date ? `${p.start_date} - ${p.end_date}` : '-'}
+              {(() => {
+                const fmt = (d?: string) => d ? String(d).slice(0,10) : '';
+                const s = fmt(p.start_date as any);
+                const e = fmt(p.end_date as any);
+                return s && e ? `${s} - ${e}` : '-';
+              })()}
             </Typography>
             <Box>
               <Tooltip title="Detail"><IconButton onClick={() => window.location.href = `/admin/projects/${p.id}`}><EditIcon /></IconButton></Tooltip>

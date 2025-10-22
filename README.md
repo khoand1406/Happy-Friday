@@ -1,6 +1,211 @@
-# Happy-Friday Project - Admin Dashboard Documentation
+# Happy-Friday — Design Patterns Applied
 
-This document provides a comprehensive overview of the Admin Dashboard functionalities within the Happy-Friday project, along with detailed instructions on how to test each feature.
+## Mục lục
+- Creational Patterns
+  - Singleton
+  - Factory Method
+- Structural Patterns
+  - Facade (AccountsService, sendMail, ApiHelper)
+  - Adapter (JwtAuthGuard, ApiHelper)
+- Behavioral Patterns
+  - Observer (React Context)
+  - Strategy (error handling strategies, Email transport)
+  - Template Method (CSV parsing, Account creation)
+  - Command (admin actions: Service methods như create, update, import, schedule transfer)
+  - State (department_transfers: scheduled → applied; account status)
+
+---
+## 1) Creational Patterns
+
+### 1.1 Singleton
+Mục tiêu: Đảm bảo chỉ có một thể hiện được tạo và dùng chung toàn cục.
+
+- Email transporter (cache singleton) — che giấu cấu hình SMTP, tái sử dụng kết nối:
+```10:32:backend/src/common/mailer.ts
+let cachedTransporter: nodemailer.Transporter | null = null;
+
+function getTransporter(): nodemailer.Transporter | null {
+  if (cachedTransporter) return cachedTransporter;
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  cachedTransporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+  return cachedTransporter;
+}
+```
+
+- Supabase admin client (được cấu hình và dùng lại xuyên suốt services) — xem `backend/src/config/database.config.ts` (không trích đầy đủ ở đây, nhưng được import tại các service như `AccountsService`).
+
+### 1.2 Factory Method
+Mục tiêu: Tạo ra các đối tượng thông qua một giao diện chung, che giấu chi tiết khởi tạo.
+
+- HTTP client helper phía FE — tạo các request đặc thù từ một “factory” thống nhất:
+```31:50:frontend/src/helper/ApiHelper.ts
+async postJson(endpoint: string, payload: any) {
+  try {
+    const token = localStorage.getItem("accessToken");
+    const response = await axios.post(`${this.baseURL}${endpoint}`, payload, {
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error instanceof AxiosError) {
+      const message = error.response?.data?.message || error.message || "Request failed";
+      throw new Error(message);
+    }
+    throw error;
+  }
+}
+```
+
+---
+
+## 2) Structural Patterns
+
+### 2.1 Facade
+Mục tiêu: Cung cấp một giao diện đơn giản, thống nhất để làm việc với một hệ thống con phức tạp; ẩn đi chi tiết triển khai.
+
+- AccountsService — Facade cho toàn bộ operations liên quan accounts (Auth Admin API, DB, timezone, workflow chuyển phòng, email chào mừng):
+```22:41:backend/src/modules/accounts/account.service.ts
+@Injectable()
+export class AccountsService {
+  async list(page = 1, perPage = 10) {
+    try { await this.applyDueDepartmentTransfers(); } catch (e) {}
+    const from = (page - 1) * perPage; const to = from + perPage - 1;
+    const { data: users, count } = await supabaseAdmin
+      .from('users')
+      .select('id,name,phone,role_id,department_id,avatar_url', { count: 'exact' })
+      .range(from, to);
+    // ... hợp nhất email từ auth, trạng thái banned, tên phòng ban ...
+    return { items, total: typeof count === 'number' ? count : items.length };
+  }
+```
+
+```96:126:backend/src/modules/accounts/account.service.ts
+async create(payload: CreateAccountPayload) {
+  if (!payload.email) throw new BadRequestException('Email is required');
+  const passwordToUse = payload.password && payload.password.length >= 6
+    ? payload.password : randomBytes(9).toString('base64');
+  const { data: created, error: adminErr } = await (supabaseAdmin as any).auth.admin.createUser({
+    email: payload.email, password: passwordToUse, email_confirm: true,
+  });
+  if (adminErr) {
+    let errorMessage = adminErr.message;
+    if (errorMessage.includes('A user with this email address has already been registered')) errorMessage = 'Email này đã được đăng ký trong hệ thống';
+    else if (errorMessage.includes('Invalid email address')) errorMessage = 'Địa chỉ email không hợp lệ';
+    else if (errorMessage.includes('Password should be at least')) errorMessage = 'Mật khẩu phải có ít nhất 6 ký tự';
+    throw new BadRequestException(errorMessage);
+  }
+  // ... insert bảng users và gửi email chào mừng
+}
+```
+
+```250:315:backend/src/modules/accounts/account.service.ts
+// Lịch chuyển phòng ban (scheduled) + áp dụng khi tới hạn theo giờ VN
+async scheduleDepartmentTransfer(userId: string, toDepartmentId: number, effectiveDateISO: string) { /* ... */ }
+async applyDueDepartmentTransfers(): Promise<{ applied: number }> { /* ... */ }
+```
+
+- sendMail — Facade cho email subsystem (SMTP cấu hình, cache transporter, fallback khi thiếu ENV):
+```34:47:backend/src/common/mailer.ts
+export async function sendMail(options: MailOptions): Promise<void> {
+  const transporter = getTransporter();
+  if (!transporter) { console.warn('[mailer] SMTP not configured. Email would be sent to:', options.to); return; }
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com';
+  await transporter.sendMail({ from, to: options.to, subject: options.subject, text: options.text, html: options.html });
+}
+```
+
+- ApiHelper — Facade cho HTTP requests phía FE (JWT header, toast/redirect khi lỗi, API shape thống nhất):
+```131:144:frontend/src/helper/ApiHelper.ts
+async get(endpoint: string, param?: any): Promise<any>{
+  try {
+    const token= localStorage.getItem("accessToken");
+    const response= await axios.get(`${this.baseURL}${endpoint}`, {
+      headers: { "Content-Type":"application/json", Authorization: `Bearer ${token}` }, params: param
+    });
+    return response.data;
+  } catch (error) { this.handleError(error); }
+}
+```
+
+### 2.2 Adapter
+Mục tiêu: Làm cho các interface không tương thích có thể làm việc với nhau.
+
+- JwtAuthGuard — chuyển JWT header → user context NestJS request:
+```10:33:backend/src/common/guard/auth.guard.ts
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  constructor(private readonly jwtService: JwtService) {}
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request>();
+    const token = this.extractTokenFromHeader(request);
+    if (!token) throw new UnauthorizedException('Missing token from headers');
+    const payload = await this.jwtService.verifyAsync(token, {secret: process.env.JWT_SECRET});
+    (request as any).user = payload; return true;
+  }
+}
+```
+
+- ApiHelper — chuyển “Axios + token + lỗi” thành API đơn giản cho toàn FE:
+```12:29:frontend/src/helper/ApiHelper.ts
+private handleError(error: any) {
+  if (error.response && error.response.status === 401) {
+    localStorage.removeItem("accessToken");
+    window.location.href = "/Unauthorized";
+  } else if (error.response && error.response.status === 403) {
+    toast.error("Bạn không có quyền truy cập vào trang này.");
+  } else {
+    console.error("API Error:", error.response?.data?.message || "Unknown error");
+  }
+  throw error;
+}
+```
+
+---
+
+## 3) Behavioral Patterns
+
+### 3.1 Observer (React Context)
+```18:26:frontend/src/context/UserContext.tsx
+const UserContext = createContext<UserContextType | undefined>(undefined);
+export const UserProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  return (<UserContext.Provider value={{ user, setUser }}>{children}</UserContext.Provider>);
+};
+```
+
+### 3.2 Strategy (xử lý lỗi API; email transport)
+```12:29:frontend/src/helper/ApiHelper.ts
+private handleError(error: any) { /* chọn chiến lược dựa trên status 401/403/khác */ }
+```
+
+### 3.3 Template Method (CSV parsing; account creation)
+```95:112:frontend/src/components/ImportAccountsDialog.tsx
+const parseCSV = async (file: File) => {
+  // 1) đọc file → 2) parse header → 3) validate từng dòng → 4) build kết quả
+}
+```
+
+### 3.4 Command (Service methods)
+```230:248:backend/src/modules/accounts/account.service.ts
+async importAccounts(accounts: CreateAccountPayload[]) { /* lặp & thực thi Create command */ }
+```
+
+### 3.5 State (workflow chuyển phòng; account status)
+```286:315:backend/src/modules/accounts/account.service.ts
+// scheduled → applied khi tới hạn theo giờ VN
+async applyDueDepartmentTransfers(): Promise<{ applied: number }> { /* ... */ }
+```
+
+---
+
+## Ghi chú & mở rộng
+- Các trích dẫn dòng có thể xê dịch nhẹ theo chỉnh sửa gần đây; hãy dùng số dòng để định vị nhanh block chính.
+- Có thể bổ sung comment ngắn “Pattern: …” ở đầu class/function để tăng khả năng discover cho người đọc.
+
 
 ## Table of Contents
 1. [Overview](#1-overview)
@@ -142,162 +347,3 @@ The Admin Dashboard is the central hub for administrators to manage users, depar
 ### 3.8. Schedule Department Transfer
 
 **Description**: Allows an administrator to schedule a user's transfer from one department to another with a specified `effectiveDate`. Before this date, the user remains in their current department; from the `effectiveDate` onwards, they will belong to the new department.
-
-**How to Test**:
-1.  Navigate to "QL tài khoản".
-2.  Locate a user you wish to transfer.
-3.  Click the "Chuyển phòng (đặt ngày hiệu lực)" (Transfer department (set effective date)) icon (folder icon) in the "Thao tác" column.
-4.  In the dialog:
-    *   Select a "Phòng ban mới" (New Department).
-    *   Set a "Ngày hiệu lực" (Effective Date).
-        *   **Test Case 1 (Immediate Transfer)**: Set the `effectiveDate` to the current date and time, or a few minutes in the past.
-            *   Click "Xác nhận" (Confirm).
-            *   Immediately refresh the "QL tài khoản" page.
-            *   Verify that the user's department in the UI has changed to the new department.
-            *   **Database Check**: In Supabase, check the `public.department_transfers` table. The record for this transfer should have `status: 'applied'`. Check the `public.users` table; the user's `department_id` should be updated.
-        *   **Test Case 2 (Future Transfer)**: Set the `effectiveDate` to a date and time in the future (e.g., tomorrow).
-            *   Click "Xác nhận" (Confirm).
-            *   Refresh the "QL tài khoản" page.
-            *   Verify that the user's department in the UI *has not* changed and still shows the old department.
-            *   **Database Check**: In Supabase, check the `public.department_transfers` table. The record for this transfer should have `status: 'scheduled'`. The `public.users` table should still show the old `department_id`.
-            *   Wait until the `effectiveDate` passes. Then, refresh the "QL tài khoản" page again. The user's department should now be updated.
-
-### 3.9. Send Welcome Email on Account Creation
-
-**Description**: When a new user account is created via the Admin Dashboard, a welcome email is automatically sent to their registered email address.
-
-**How to Test**:
-1.  Ensure your SMTP configuration in `.env` is correct and the backend is running.
-2.  Navigate to "QL tài khoản".
-3.  Click "Thêm tài khoản".
-4.  Create a new account with a valid email address you can access.
-5.  After successful creation, check the inbox of the email address used for the new account. You should receive an email with the subject `[Zen8labs] Chào mừng bạn đến với công ty Zen8labs!`.
-
-## 4. Project Management (QL dự án)
-
-**Description**: This section allows administrators to manage projects, including creating new projects, editing existing ones, and assigning members.
-
-### 4.1. List Projects
-
-**Description**: Displays a list of all projects in the system.
-
-**How to Test**:
-1.  Log in as an admin.
-2.  Click on "QL dự án" in the sidebar.
-3.  Verify that all projects are listed.
-
-### 4.2. Create Project
-
-**Description**: Allows an administrator to create a new project.
-
-**How to Test**:
-1.  Navigate to "QL dự án".
-2.  Click the "Thêm dự án" (Add Project) button.
-3.  Fill in the project details (e.g., name, description, start/end dates).
-4.  Click "Tạo" (Create).
-5.  Verify that the new project appears in the project list.
-
-### 4.3. Edit Project
-
-**Description**: Enables administrators to modify the details of an existing project.
-
-**How to Test**:
-1.  Navigate to "QL dự án".
-2.  Locate an existing project.
-3.  Click the "Sửa" (Edit) icon for that project.
-4.  Modify some details.
-5.  Click "Lưu" (Save).
-6.  Verify that the changes are reflected in the project list.
-
-### 4.4. Assign Members to Project
-
-**Description**: Allows administrators to add existing users as members to a specific project. An email notification is sent to the assigned member.
-
-**How to Test**:
-1.  Navigate to "QL dự án".
-2.  Select a project to edit.
-3.  In the project details, find the section for "Thành viên" (Members).
-4.  Add an existing user as a member to the project.
-5.  Save the changes.
-6.  Verify that the user is listed as a member of the project.
-7.  **Email Notification Test**: Check the email inbox of the newly assigned member. They should receive an email notifying them of their assignment to the project.
-
-## 5. Recent Activities (Hoạt động gần đây)
-
-**Description**: This panel on the Dashboard provides a quick summary of recent system events, such as new user registrations and project creations, along with the overall project completion rate.
-
-**How to Test**:
-1.  Perform actions that would trigger updates to this section (e.g., create a new user, create a new project).
-2.  Navigate back to the "Dashboard" section.
-3.  Observe the "Hoạt động gần đây" panel and verify that the numbers and summaries are updated to reflect your recent actions.
-
-## 6. Setup and Running the Project
-
-To run and test the project, ensure you have followed the setup instructions for both the `frontend` (React) and `backend` (NestJS) applications.
-
-**Backend (NestJS)**:
-1.  Navigate to the `backend` directory: `cd backend`
-2.  Install dependencies: `npm install`
-3.  Build the project: `npm run build`
-4.  Start in development mode: `npm run start:dev`
-    *   Ensure your `.env` file is correctly configured, especially for `DATABASE_URL` (Supabase) and SMTP settings for email functionality.
-
-**Frontend (React)**:
-1.  Navigate to the `frontend` directory: `cd frontend`
-2.  Install dependencies: `npm install`
-3.  Start the development server: `npm start`
-
-After both frontend and backend are running, access the application via your browser, typically at `http://localhost:3001` (frontend) and `http://localhost:3000/api` (backend API).
-
-## 7. Technical Architecture
-
-**Backend (NestJS)**:
-- **Database**: PostgreSQL with Supabase
-- **Authentication**: JWT + Supabase Auth
-- **Email Service**: Nodemailer with SMTP
-- **Modules**: Auth, User, Department, Projects, Accounts, Events, Invite
-
-**Frontend (React)**:
-- **Framework**: React with TypeScript
-- **UI Library**: Material-UI (MUI)
-- **State Management**: React Context
-- **Routing**: React Router
-
-## 8. Key Features Summary
-
-✅ **Account Management**:
-- Create, edit, delete user accounts
-- Import accounts from CSV
-- Reset passwords
-- Ban/enable accounts
-- Schedule department transfers
-- Send welcome emails
-
-✅ **Project Management**:
-- Create and manage projects
-- Assign members to projects
-- Send email notifications for project assignments
-
-✅ **Dashboard Analytics**:
-- Real-time statistics
-- Recent activities tracking
-- Project completion rates
-
-✅ **Email Notifications**:
-- Welcome emails for new accounts
-- Project assignment notifications
-- Password reset emails
-
-## 9. Troubleshooting
-
-**Common Issues**:
-1. **Email not sending**: Check SMTP configuration in `.env` file
-2. **Department transfer not applying**: Ensure backend is restarted after code changes
-3. **UI layout issues**: Check browser console for JavaScript errors
-4. **Authentication errors**: Verify JWT tokens and Supabase configuration
-
-**Debug Steps**:
-1. Check backend logs for errors
-2. Verify database connections
-3. Test API endpoints directly
-4. Check browser network tab for failed requests

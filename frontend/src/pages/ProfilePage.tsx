@@ -10,7 +10,6 @@ import MainLayout from "../layout/MainLayout";
 import type { ChangePasswordRequest } from "../models/request/auth/auth.request";
 import { changePassword, getUserProfile, updateUserProfile } from "../services/user.service";
 
-
 export const ProfilePage: React.FC = () => {
   const { user, setUser } = useUser();
   const [loading, setLoading] = useState(true);

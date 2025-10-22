@@ -240,14 +240,14 @@ export default function AdminProjectDetail() {
       console.log('Attempting to delete member:', { projectId: id, userId: memberToDelete.id });
       console.log('Token:', localStorage.getItem("accessToken"));
       await removeProjectMember(id, memberToDelete.id);
-      setDeleteMemberDialogOpen(false);
-      setMemberToDelete(null);
-      // Reload project detail to refresh members list
-      await fetchProjectDetail();
       toast.success('Member removed');
     } catch (error) {
       console.error('Error removing member:', error);
       toast.error('Failed to remove member');
+    } finally {
+      setDeleteMemberDialogOpen(false);
+      setMemberToDelete(null);
+      await fetchProjectDetail();
     }
   };
 
