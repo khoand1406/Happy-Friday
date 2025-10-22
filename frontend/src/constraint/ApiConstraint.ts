@@ -8,6 +8,7 @@ export const UPDATE_PROFILE= '/api/users/me/update_profile'
 export const CHANGE_PASSWORD= '/api/users/change-password'
 export const MEMBER_LIST= (depId: number)=> `/api/users/member-list/${depId}`
 export const DEPARTMENT_LIST= '/api/departments'
+export const DEPARTMENT_DETAIL= (id: number)=> `/api/departments/${id}`
 // Accounts (admin)
 export const ACCOUNTS= '/api/accounts'
 export const ACCOUNT_ENABLE= (id: string)=> `/api/accounts/${id}/enable`
@@ -28,8 +29,8 @@ export const DELETE_EVENT= (id:number)=> `/api/events/delete/${id}`
 export const ACCEPT_EVENT= (id:number)=> `/api/events/accept/${id}`
 export const REJECT_EVENT= (id:number)=> `/api/events/reject/${id}`
 
-// Invites
-export const INVITES= '/api/invites'
+// NOTIFICATIONS
+export const NOTIFICATIONS= '/api/notification'
 // Projects
 export const PROJECTS= '/api/projects'
 export const PROJECT_DETAIL= (id: number | string)=> `/api/projects/${id}`

@@ -1,16 +1,4 @@
 export interface DepartmentResponse {
-    id: number;
-    name: string;
-    memberCount: number;
-    leader: {
-        id: string,
-        name: string,
-        avatarUrl: string | null
-        role: string
-    }
-}
-
-export interface DepartmentRes {
   department_id: number;
   department_name: string;
   leader: {
@@ -30,4 +18,3 @@ interface MemberInfo {
   email: string;
   avatar_url: string;
 }
-

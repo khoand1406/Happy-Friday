@@ -1,109 +1,215 @@
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import {
-  Avatar,
-  Box,
-  CircularProgress,
-  Modal,
-  Typography,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  Grid
-} from "@mui/material";
-import MainLayout from "../layout/MainLayout";
+import { useEffect, useState, useMemo } from "react";
+import { Box, CircularProgress } from "@mui/material";
+import ReactFlow, {
+  Background,
+  Controls,
+  useNodesState,
+  useEdgesState,
+  Handle,
+  Position,
+} from "reactflow";
+import "reactflow/dist/style.css";
+import dagre from "dagre";
 
-import type { UserResponse } from "../models/response/user.response";
-import { getMemberByDep } from "../services/user.service";
+import MainLayout from "../layout/MainLayout";
+import { nodeTypes as baseNodeTypes } from "../props/DepartmentProps";
+import UserDetailModal from "../components/UserDetailModal";
+import { getDepartment } from "../services/department.sertvice";
+import type { DepartmentRes } from "../models/response/dep.response";
+
+const nodeTypes = {
+  ...baseNodeTypes,
+  department: ({ data }: any) => (
+    <div
+      style={{
+        padding: 12,
+        background: "#1976d2",
+        color: "#fff",
+        borderRadius: 8,
+        textAlign: "center",
+        minWidth: 140,
+        fontWeight: "bold",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+        position: "relative",
+      }}
+    >
+      {data.label}
+      {/* ✅ Thêm Handle để cho phép kết nối ra ngoài */}
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+    </div>
+  ),
+};
 
 export default function DepartmentDetail() {
   const { id } = useParams();
-  const [deptEmployees, setDeptEmployees] = useState<UserResponse[]>([]);
+  const [departmentData, setDepartmentData] = useState<DepartmentRes | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
-  const [selectedEmployee, setSelectedEmployee] = useState<UserResponse | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+    avatarUrl: string;
+  } | null>(null);
 
+  // 🔹 Fetch dữ liệu nhân viên của phòng ban
   useEffect(() => {
     if (!id) return;
-
     const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await getMemberByDep(Number(id));
-        setDeptEmployees(data);
+        const data = await getDepartment(Number(id));
+        console.log("Department data:", data);
+        setDepartmentData(data);
       } catch (err) {
-        console.error("Failed to fetch members:", err);
+        console.error("Failed to fetch department:", err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [id]);
 
-  const handleOpen = (emp: UserResponse) => setSelectedEmployee(emp);
-  const handleClose = () => setSelectedEmployee(null);
+  // 🔹 Tạo layout bằng dagre
+ const layoutedElements = useMemo(() => {
+  if (!departmentData) return { nodes: [], edges: [] };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
-    );
+  const g = new dagre.graphlib.Graph();
+  g.setGraph({ rankdir: "TB", nodesep: 80, ranksep: 120 });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  const leader = departmentData.leader; // ✅ lấy phần tử đầu tiên
+  const leaderNode = {
+    id: `leader-${leader.user_id}`,
+    type: "avatar",
+    data: {
+      label: `${leader.name} (Trưởng phòng)`,
+      avatar_url: leader.avatar_url,
+      employee: {
+        ...leader,
+        email: "", // nếu không có thì để trống
+        phone: "",
+        department_name: `Head of ${departmentData.department_name}`,
+      },
+    },
+    position: { x: 0, y: 0 },
+  };
+
+  const memberNodes =
+    departmentData.members?.map((m) => ({
+      id: `member-${m.user_id}`,
+      type: "avatar",
+      data: {
+        label: m.name,
+        avatar_url: m.avatar_url,
+        employee: {
+          ...m,
+          department_name: departmentData.department_name,
+        },
+      },
+      position: { x: 0, y: 0 },
+    })) || [];
+
+  const nodes = [leaderNode, ...memberNodes];
+
+  const edges =
+    departmentData.members?.map((m) => ({
+      id: `edge-${m.user_id}`,
+      source: `leader-${leader.user_id}`,
+      target: `member-${m.user_id}`,
+    })) || [];
+
+  nodes.forEach((node) => g.setNode(node.id, { width: 100, height: 100 }));
+  edges.forEach((edge) => g.setEdge(edge.source, edge.target));
+  dagre.layout(g);
+
+  const layoutedNodes = nodes.map((node) => {
+    const pos = g.node(node.id);
+    return { ...node, position: { x: pos.x, y: pos.y } };
+  });
+
+  return { nodes: layoutedNodes, edges };
+}, [departmentData]);
+
+  // ✅ Quan trọng: đồng bộ lại state khi layoutedElements thay đổi
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  useEffect(() => {
+    setNodes(layoutedElements.nodes);
+    setEdges(layoutedElements.edges);
+  }, [layoutedElements, setNodes, setEdges]);
+
+  // 🔹 Khi click vào node nhân viên
+  const handleNodeClick = (_: any, node: any) => {
+  const employee = node.data?.employee;
+  if (employee) {
+    setSelectedEmployee({
+      name: employee.name,
+      email: employee.email || "Chưa có email",
+      phone: employee.phone || "Chưa có số điện thoại",
+      role: employee.department_name || "Không rõ",
+      avatarUrl:
+        employee.avatar_url ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          employee.name
+        )}&background=random`,
+    });
   }
+};
 
+  // 🔹 Render
   return (
     <MainLayout>
-      <Grid container spacing={2}>
-        {deptEmployees.map((emp) => (
-          <Grid size= {{xs: 12, sm: 6, md: 4}} key={emp.user_id}>
-            <Card>
-              <CardHeader
-                avatar={
-                  <Avatar src={emp.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            emp.name
-                          )}&background=random`}>
-                    {emp.name ? emp.name[0] : "?"}
-                  </Avatar>
-                }
-                title={emp.name}
-                subheader={emp.department_name + " - " + emp.email}
-                onClick={() => handleOpen(emp)}
-              />
-              <CardContent>
-                <Typography variant="body2">{emp.department_name}</Typography>
-                <Typography variant="body2">Phone: {emp.phone}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-      <Modal open={!!selectedEmployee} onClose={handleClose}>
+      {loading ? (
         <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            bgcolor: "background.paper",
-            p: 3,
-            borderRadius: 2,
-            boxShadow: 24,
-            minWidth: 300
-          }}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="200px"
         >
-          {selectedEmployee && (
-            <>
-              <Typography variant="h6" mb={1}>{selectedEmployee.name}</Typography>
-              <Typography variant="body2">Email: {selectedEmployee.email}</Typography>
-              <Typography variant="body2">Phone: {selectedEmployee.phone}</Typography>
-              <Box mt={2} textAlign="right">
-                <Button variant="contained" onClick={handleClose}>Close</Button>
-              </Box>
-            </>
-          )}
+          <CircularProgress />
         </Box>
-      </Modal>
+      ) : (
+        <Box sx={{ height: "80vh", px: 2 }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            nodeTypes={nodeTypes}
+            fitView
+            onNodeClick={handleNodeClick}
+          >
+            <Background />
+            <Controls />
+          </ReactFlow>
+        </Box>
+      )}
+
+      {/* 🔹 Modal hiển thị thông tin nhân viên */}
+      <UserDetailModal
+        open={!!selectedEmployee}
+        onClose={() => setSelectedEmployee(null)}
+        userData={
+          selectedEmployee
+            ? {
+                name: selectedEmployee.name,
+                email: selectedEmployee.email,
+                phone: selectedEmployee.phone,
+                role: selectedEmployee.role,
+                avatarUrl:
+                  selectedEmployee.avatarUrl ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    selectedEmployee.name
+                  )}&background=random`,
+              }
+            : null
+        }
+      />
     </MainLayout>
   );
 }

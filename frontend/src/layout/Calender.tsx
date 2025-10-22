@@ -31,13 +31,12 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AxiosError } from "axios";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import { useUser } from "../context/UserContext";
 import type { CreateEventRequest } from "../models/request/event.request";
 import type {
   EventDetailResponse,
-  EventResponse,
   Invite,
 } from "../models/response/event.response";
 import type { UserBasicRespone } from "../models/response/user.response";
@@ -116,6 +115,28 @@ export default function CalendarLayout() {
       setEditingEventId(null);
     }
   };
+
+  const fetchEvents = useCallback(
+    async (fetchInfo: any, successCallback: any, failureCallback: any) => {
+      try {
+        const data = await getEvents(fetchInfo.startStr, fetchInfo.endStr);
+        const mapped = data.map((item) => ({
+          id: item.id.toString(),
+          title: item.title,
+          start: new Date(item.startdate),
+          end: new Date(item.enddate),
+          backgroundColor: "rgba(255, 235, 59, 0.3)",
+          borderColor: "rgba(255, 213, 90, 0.6)",
+          textColor: "#333",
+        }));
+        successCallback(mapped);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+        failureCallback(error);
+      }
+    },
+    []
+  );
 
   const handleAcceptInvite = async (eventId: number) => {
     try {
@@ -233,28 +254,7 @@ export default function CalendarLayout() {
               right: "dayGridMonth,timeGridWeek,timeGridDay",
             }}
             height="100%"
-            events={async (fetchInfo, successCallback, failureCallback) => {
-              try {
-                const data: EventResponse[] = await getEvents(
-                  fetchInfo.startStr,
-                  fetchInfo.endStr
-                );
-                const mapped = data.map((item) => ({
-                  id: item.id.toString(),
-                  title: item.title,
-                  start: new Date(item.startdate), // để nguyên ISO
-                  end: new Date(item.enddate),
-                  backgroundColor: "rgba(255, 235, 59, 0.3)",
-                  borderColor: "rgba(255, 213, 90, 0.6)",
-                  textColor: "#333",
-                }));
-
-                successCallback(mapped);
-              } catch (error: any) {
-                console.error("Error fetching events:", error);
-                failureCallback(error);
-              }
-            }}
+            events={fetchEvents}
             eventClick={async (info) => {
               try {
                 const eventId = parseInt(info.event.id);
@@ -277,7 +277,11 @@ export default function CalendarLayout() {
           maxWidth="sm"
           fullWidth
         >
-          <DialogTitle>Create New Event</DialogTitle>
+          {editMode ? (
+            <DialogTitle>EDIT EVENT</DialogTitle>
+          ) : (
+            <DialogContent>CREATE EVENT</DialogContent>
+          )}
           <DialogContent
             sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
           >
@@ -404,9 +408,10 @@ export default function CalendarLayout() {
                 <Divider />
 
                 {/* Time */}
-                 <Typography color="text.secondary">
-  🕒 {formatDateHanoi(eventDetail.startDate).replace("T", " ")} → {formatDateHanoi(eventDetail.endDate).replace("T", " ")}
-</Typography>
+                <Typography color="text.secondary">
+                  🕒 {formatDateHanoi(eventDetail.startDate).replace("T", " ")}{" "}
+                  → {formatDateHanoi(eventDetail.endDate).replace("T", " ")}
+                </Typography>
                 <Box
                   display="flex"
                   alignItems="center"
