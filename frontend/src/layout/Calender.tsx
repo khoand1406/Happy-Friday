@@ -123,9 +123,9 @@ export default function CalendarLayout() {
         const mapped = data.map((item) => ({
           id: item.id.toString(),
           title: item.title,
-          start: new Date(item.startdate),
-          end: new Date(item.enddate),
-          backgroundColor: "rgba(255, 235, 59, 0.3)",
+          start: new Date(item.start),
+          end: new Date(item.end),
+          backgroundColor: "rgba(37, 35, 19, 0.3)",
           borderColor: "rgba(255, 213, 90, 0.6)",
           textColor: "#333",
         }));
