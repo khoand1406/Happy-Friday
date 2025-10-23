@@ -5,7 +5,7 @@ import {
   Typography,
 } from "@mui/material";
 import React from "react";
-import type { departmentItem } from "../props/Mock";
+import type { departmentItem } from "../../props/Mock";
 
 type DepartmentNodeProps = {
   department: departmentItem;

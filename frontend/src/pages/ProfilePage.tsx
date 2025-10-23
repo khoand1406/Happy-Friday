@@ -3,7 +3,7 @@ import { AxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
-import UserProfile from "../components/UserProfile";
+import UserProfile from "../components/user/UserProfile";
 import { AVATAR_URL } from "../constraint/LocalStorage";
 import { useUser } from "../context/UserContext";
 import MainLayout from "../layout/MainLayout";

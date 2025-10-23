@@ -1,22 +1,22 @@
-import { useParams } from "react-router-dom";
-import { useEffect, useState, useMemo } from "react";
 import { Box, CircularProgress } from "@mui/material";
+import dagre from "dagre";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import ReactFlow, {
   Background,
   Controls,
-  useNodesState,
-  useEdgesState,
   Handle,
   Position,
+  useEdgesState,
+  useNodesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import dagre from "dagre";
 
+import UserDetailModal from "../components/user/UserDetailModal";
 import MainLayout from "../layout/MainLayout";
-import { nodeTypes as baseNodeTypes } from "../props/DepartmentProps";
-import UserDetailModal from "../components/UserDetailModal";
-import { getDepartment } from "../services/department.sertvice";
 import type { DepartmentRes } from "../models/response/dep.response";
+import { nodeTypes as baseNodeTypes } from "../props/DepartmentProps";
+import { getDepartment } from "../services/department.sertvice";
 
 const nodeTypes = {
   ...baseNodeTypes,

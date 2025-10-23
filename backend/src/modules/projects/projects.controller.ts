@@ -161,6 +161,13 @@ export class ProjectsController {
     console.log('=============================');
     return this.projectsService.updateProjectUpdate(id, updateId, payload);
   }
+
+  @Get('me/list')
+  async getParticipantProjects(@Req() req){
+    const userId= req.user.sub;
+    const result= await this.projectsService.getProjectsByUserId(userId);
+    return result;
+  }
 }
 
 

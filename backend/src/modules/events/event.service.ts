@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { supabaseAdmin } from 'src/config/database.config';
 import { NotificationServices } from '../notification/notification.service';
 import {
@@ -38,44 +42,40 @@ export class EventService {
 
       const { data, error, status } = await supabaseAdmin
         .from('events')
-        // chú ý: supabase JS chấp nhận camelCase, nhưng nếu DB có quote-sensitive column names
-        // bạn vẫn có thể thử .select('"id","title","content","startDate","endDate","creatorId"')
         .select('id, title, content, "startDate", "endDate", "creatorId"')
         .gte('startDate', now);
 
-      // Log chi tiết trả về từ supabase
-      this.logger.debug(`Supabase response status=${status}`);
-      this.logger.debug('Supabase raw error:', JSON.stringify(error));
-      this.logger.debug('Supabase raw data length:', Array.isArray(data) ? data.length : typeof data);
-
       if (error) {
-        // log đầy đủ error object
-        this.logger.error('Supabase returned error', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-        // debug cụ thể các trường trong error (nếu có)
-        throw new InternalServerErrorException('Supabase error: ' + (error.message ?? JSON.stringify(error)));
+        this.logger.error(
+          'Supabase returned error',
+          JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        );
+        throw new InternalServerErrorException(
+          'Supabase error: ' + (error.message ?? JSON.stringify(error)),
+        );
       }
 
-      // thêm bước kiểm tra & lọc dữ liệu bất thường trước khi map
       const safeData = (data ?? []).filter((item, idx) => {
         const okId = item?.id !== undefined && item?.id !== null;
         const okStart = !!item?.startDate;
         const okEnd = !!item?.endDate;
         if (!okId || !okStart || !okEnd) {
-          this.logger.warn(`Skipping invalid row at index ${idx}: id=${item?.id}, startDate=${item?.startDate}, endDate=${item?.endDate}`);
+          this.logger.warn(
+            `Skipping invalid row at index ${idx}: id=${item?.id}, startDate=${item?.startDate}, endDate=${item?.endDate}`,
+          );
           return false;
         }
-        // nếu id không phải là number hoặc numeric string, log ra
+
         if (isNaN(Number(item.id))) {
-          this.logger.warn(`Row id is not numeric: id=${String(item.id)} (type=${typeof item.id}) at index ${idx}`);
-          // chúng ta vẫn giữ row (nếu bạn muốn bỏ row, return false)
-          // return false to skip
+          this.logger.warn(
+            `Row id is not numeric: id=${String(item.id)} (type=${typeof item.id}) at index ${idx}`,
+          );
         }
         return true;
       });
 
-      // map an toàn: giữ creatorId nguyên (UUID string), convert id nếu cần
       const mapped = safeData.map((item) => ({
-        id: typeof item.id === 'number' ? item.id : Number(item.id), // nếu không numeric thì sẽ thành NaN — đã warn ở trên
+        id: typeof item.id === 'number' ? item.id : Number(item.id), 
         title: item.title ?? 'No Title',
         content: item.content ?? '',
         start: new Date(item.startDate),
@@ -86,10 +86,10 @@ export class EventService {
       this.logger.log(`Returning ${mapped.length} incoming events`);
       return mapped;
     } catch (err) {
-      // log mọi thứ trước khi ném
       this.logger.error('getIncomingEvents failed', err as any);
-      // expose minimal message to client but keep details in logs
-      throw new InternalServerErrorException('Internal Server Error while fetching incoming events');
+      throw new InternalServerErrorException(
+        'Internal Server Error while fetching incoming events',
+      );
     }
   }
   async getPastEvents(): Promise<EventResponseT[]> {
@@ -102,11 +102,16 @@ export class EventService {
         'Internal Server Error: ' + error.message,
       );
     }
-    return (data as any[]).map((item) => ({
-      ...item,
-      startDate: new Date(item.startDate),
-      endDate: new Date(item.endDate),
-    })) as EventResponseT[];
+    const mapped= data.map((item)=>({
+      id: typeof item.id === 'number' ? item.id : Number(item.id), 
+        title: item.title ?? 'No Title',
+        content: item.content ?? '',
+        start: new Date(item.startDate),
+        end: new Date(item.endDate),
+        creatorid: String(item.creatorId),
+    }));
+
+    return mapped;
   }
 
   async getDetailEvent(eventId: number): Promise<EventDetailResponse> {

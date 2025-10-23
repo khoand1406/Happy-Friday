@@ -32,11 +32,6 @@ export class EventController {
     const response = await this.eventService.getEvents(userId, startDate, endDate);
     return response;
   }
-  @Get('/:eventId')
-  async getEvent(@Param('eventId') eventId: string) {
-    const response = await this.eventService.getDetailEvent(Number(eventId));
-    return response;
-  }
 
   @Get('/incoming')
   async getIncomingEvents() {
@@ -47,6 +42,13 @@ export class EventController {
   @Get('/past')
   async getPastEvents() {
     const response = await this.eventService.getPastEvents();
+    return response;
+  }
+
+
+  @Get('/:eventId')
+  async getEvent(@Param('eventId') eventId: string) {
+    const response = await this.eventService.getDetailEvent(Number(eventId));
     return response;
   }
 
@@ -93,4 +95,5 @@ export class EventController {
     await this.eventService.rsvpEvent(eventId, user_id, false);
     return { statusCode: HttpStatus.OK, message: 'Success' };
   }
+  
 }

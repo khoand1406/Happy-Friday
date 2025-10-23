@@ -330,6 +330,48 @@ export class ProjectsService {
     if (error) throw new InternalServerErrorException(error.message);
     return { message: 'Update updated successfully' };
   }
+
+    async getProjectsByUserId(userId: string) {
+    
+    const { data: memberData, error: memberError } = await supabaseAdmin
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', userId);
+
+    if (memberError) throw memberError;
+    if (!memberData || memberData.length === 0) return [];
+
+    const projectIds = memberData.map((m) => m.project_id);
+
+    const { data: projects, error: projectError } = await supabaseAdmin
+      .from('projects')
+      .select(`
+        id,
+        name,
+        description,
+        status,
+        start_date,
+        end_date,
+        project_members (
+          user_id,
+          project_role
+        )
+      `)
+      .in('id', projectIds);
+
+    if (projectError) throw projectError;
+
+    return projects.map((p) => ({
+      project_id: p.id,
+      name: p.name,
+      description: p.description,
+      status: p.status,
+      start_date: p.start_date,
+      end_date: p.end_date,
+      current_role: p.project_members.find((x=> x.user_id===userId))?.project_role ?? null,
+      members: p.project_members ?? [],
+    }));
+  }
 }
 
 

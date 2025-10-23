@@ -3,6 +3,7 @@ import {
   Avatar,
   Badge,
   Box,
+  Chip,
   CssBaseline,
   Divider,
   Drawer,
@@ -25,6 +26,7 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
+import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import PeopleIcon from "@mui/icons-material/People";
 import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlined";
@@ -35,12 +37,14 @@ import {
   Search,
   SearchIconWrapper,
   StyledInputBase,
-} from "../components/SearchComponent";
+} from "../components/common/SearchComponent";
 import { AVATAR_URL } from "../constraint/LocalStorage";
 import { useUser } from "../context/UserContext";
 import { darkTheme, lightTheme } from "../theme/theme";
 import { getNotifications } from "../services/notification.service";
 import type { NotificationResponse } from "../models/response/notification.response";
+import type { ProjectResponse } from "../models/response/project.response";
+import { getProjectsByUserId } from "../services/project.service";
 
 const drawerWidth = 240;
 
@@ -65,6 +69,8 @@ export default function MainLayout({
     NotificationResponse[]
   >([]);
   const [openNotifications, setOpenNotifications] = React.useState(false);
+  const [projects, setProjects] = React.useState<ProjectResponse[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const open = Boolean(anchorEl);
 
   const navigate = useNavigate();
@@ -131,6 +137,20 @@ export default function MainLayout({
     };
   }, [openNotifications]);
 
+  React.useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const data = await getProjectsByUserId();
+        setProjects(data);
+      } catch (error) {
+        console.error("❌ Failed to fetch projects:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProjects();
+  }, []);
+
   const drawer = (
     <Box
       sx={{ height: "100%", display: "flex", flexDirection: "column", p: 1 }}
@@ -166,6 +186,77 @@ export default function MainLayout({
             </ListItem>
           );
         })}
+      </List>
+      <Divider></Divider>
+       <Divider sx={{ my: 1 }} />
+
+      {/* --- Project list --- */}
+      <Typography
+        variant="subtitle2"
+        sx={{ pl: 2, mt: 1, mb: 0.5, color: "text.secondary" }}
+      >
+        My Projects
+      </Typography>
+
+      <List sx={{ mb: 1 }}>
+        {loading ? (
+          <Typography
+            variant="body2"
+            sx={{ pl: 3, py: 1, color: "text.disabled", fontStyle: "italic" }}
+          >
+            Loading...
+          </Typography>
+        ) : projects.length === 0 ? (
+          <Typography
+            variant="body2"
+            sx={{ pl: 3, py: 1, color: "text.disabled", fontStyle: "italic" }}
+          >
+            No projects yet
+          </Typography>
+        ) : (
+          projects.map((item) => (
+            <ListItem key={item.project_id} disablePadding>
+              <ListItemButton
+                onClick={() => navigate(`/project-detail/${item.project_id}`)}
+                sx={{
+                  borderRadius: 2,
+                  mx: 1,
+                  my: 0.5,
+                  "&:hover": { backgroundColor: "action.hover" },
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <WorkOutlineIcon fontSize="small" color="action" />
+                  <ListItemText
+                    primary={item.name}
+                    primaryTypographyProps={{ fontSize: 14, fontWeight: 500 }}
+                  />
+                </div>
+
+                <Chip
+                  label={item.current_role}
+                  size="small"
+                  color={
+                    item.current_role === "Leader"
+                      ? "primary"
+                      : item.current_role === "Member"
+                      ? "secondary"
+                      : "default"
+                  }
+                  sx={{
+                    textTransform: "capitalize",
+                    fontWeight: 500,
+                    fontSize: 11,
+                    height: 22,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))
+        )}
       </List>
       <Box flexGrow={1} />
     </Box>
