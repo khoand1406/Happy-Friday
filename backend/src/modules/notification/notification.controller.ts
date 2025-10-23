@@ -9,7 +9,7 @@ export class NotificationController{
     @Get('/')
     async GetNotification(@Req() req){
         const userId= req.user.sub;
-        const result= await this.NotiService.getNotification(userId);
+        const result= await this.NotiService.getNotificationWithStatus(userId);
         return result;
     }
 

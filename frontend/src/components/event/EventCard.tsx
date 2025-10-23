@@ -8,8 +8,8 @@ interface Props {
 }
 
 const EventCard: React.FC<Props> = ({ event }) => {
-  const { day, month } = formatDateParts(event.start);
-  const timeRange = formatTimeRange(event.start, event.end);
+  const { day, month } = formatDateParts(event.startdate);
+  const timeRange = formatTimeRange(event.startdate, event.enddate);
 
   return (
     <Card sx={{ mb: 2 }}>

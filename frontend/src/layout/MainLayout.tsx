@@ -3,6 +3,7 @@ import {
   Avatar,
   Badge,
   Box,
+  Button,
   Chip,
   CssBaseline,
   Divider,
@@ -45,6 +46,7 @@ import { getNotifications } from "../services/notification.service";
 import type { NotificationResponse } from "../models/response/notification.response";
 import type { ProjectResponse } from "../models/response/project.response";
 import { getProjectsByUserId } from "../services/project.service";
+import { acceptEvent, rejectEvent } from "../services/events.service";
 
 const drawerWidth = 240;
 
@@ -265,6 +267,22 @@ export default function MainLayout({
   const container =
     window !== undefined ? () => window().document.body : undefined;
 
+  async function handleAccept(eventId: number) {
+    try {
+      await acceptEvent(eventId);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async function handleDecline(eventId: number){
+    try {
+      await rejectEvent(eventId);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   return (
     <ThemeProvider theme={darkMode ? darkTheme : lightTheme}>
       <Box sx={{ display: "flex", bgcolor: "#f9fafc" }}>
@@ -472,26 +490,48 @@ export default function MainLayout({
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <Box sx={{ p: 2, width: 300 }}>
-          <Typography variant="h6">Notifications</Typography>
-          <Divider sx={{ my: 1 }} />
-          {notifications.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No notifications
-            </Typography>
-          ) : (
-            notifications.map((n) => (
-              <Box key={n.id} sx={{ mb: 1 }}>
-                <Typography fontWeight={n.is_read ? 400 : 600}>
-                  {n.title}
-                </Typography>
-                <Typography variant="body2">{n.content}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(n.created_at).toLocaleString()}
-                </Typography>
-              </Box>
-            ))
+    <Typography variant="h6">Notifications</Typography>
+    <Divider sx={{ my: 1 }} />
+    {notifications.length === 0 ? (
+      <Typography variant="body2" color="text.secondary">
+        No notifications
+      </Typography>
+    ) : (
+      notifications.map((n) => (
+        <Box key={n.id} sx={{ mb: 2 }}>
+          <Typography fontWeight={n.is_read ? 400 : 600}>
+            {n.title}
+          </Typography>
+          <Typography variant="body2">{n.content}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {new Date(n.created_at).toLocaleString()}
+          </Typography>
+
+          {/* 👇 Hiển thị nút nếu status === false */}
+          {n.status === false && (
+            <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                onClick={() => handleAccept(n.eventId)}
+              >
+                Accept
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                onClick={() => handleDecline(n.eventId)}
+              >
+                Decline
+              </Button>
+            </Box>
           )}
         </Box>
+      ))
+    )}
+  </Box>
       </Popover>
     </ThemeProvider>
   );

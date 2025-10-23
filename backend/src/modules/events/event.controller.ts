@@ -34,14 +34,16 @@ export class EventController {
   }
 
   @Get('/incoming')
-  async getIncomingEvents() {
-    const response = await this.eventService.getIncomingEvents();
+  async getIncomingEvents(@Req() req) {
+    const userId= req.user.sub;
+    const response = await this.eventService.getIncomingEvents(userId);
     return response;
   }
 
   @Get('/past')
-  async getPastEvents() {
-    const response = await this.eventService.getPastEvents();
+  async getPastEvents(@Req() req) {
+    const userId= req.user.sub
+    const response = await this.eventService.getPastEvents(userId);
     return response;
   }
 

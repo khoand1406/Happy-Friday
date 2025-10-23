@@ -12,6 +12,11 @@ export function formatDateVN(date: string) {
     : "Invalid date";
 }
 
+export const toHanoiTime = (iso: string) => {
+  const date = new Date(iso);
+  return new Date(date.getTime() + 7 * 60 * 60 * 1000);
+};
+
 export function formatDateLocal(dateInput: string | Date) {
   if (!dateInput) return "";
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
@@ -44,8 +49,8 @@ export function formatDateHanoi(dateInput: string | Date) {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-export function formatDateParts(dateString: string) {
-  const date = new Date(dateString);
+export function formatDateParts(dateInput: string | Date) {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   const day = date.getDate();
   const month = date.toLocaleString('vi-VN', { month: 'short' }).toUpperCase();
   return { day, month };
