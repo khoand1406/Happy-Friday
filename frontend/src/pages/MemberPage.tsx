@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
-import MainLayout from "../layout/MainLayout";
-import { getDepartments } from "../services/department.sertvice";
-import type { DepartmentResponse } from "../models/response/dep.response";
 import { Alert, Box, CircularProgress } from "@mui/material";
-import { DepartmentOrgChart } from "../components/DepartmentOrgChart";
+import React, { useEffect, useState } from "react";
+import { DepartmentOrgChart } from "../components/department/DepartmentOrgChart";
+import MainLayout from "../layout/MainLayout";
+import type { DepartmentResponse } from "../models/response/dep.response";
+import { getDepartments } from "../services/department.sertvice";
 
 export const MembersPage: React.FC = () => {
   const [company, setCompany] = useState<DepartmentResponse[] | null>(null);

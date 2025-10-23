@@ -43,3 +43,27 @@ export function formatDateHanoi(dateInput: string | Date) {
 
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
+
+export function formatDateParts(dateString: string) {
+  const date = new Date(dateString);
+  const day = date.getDate();
+  const month = date.toLocaleString('vi-VN', { month: 'short' }).toUpperCase();
+  return { day, month };
+}
+
+export function formatTimeRange(startDate: string, endDate:string) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const startTime = start.toLocaleTimeString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const endTime = end.toLocaleTimeString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return `${startTime} - ${endTime}`;
+}

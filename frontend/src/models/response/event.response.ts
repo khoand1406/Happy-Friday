@@ -2,8 +2,8 @@ export interface EventResponse{
     id: number;
     title: string;
     content: string;
-    startdate: Date;
-    enddate: Date;
+    start: string;
+    end: string;
     creatorid: string;
 }
 

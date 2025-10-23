@@ -36,6 +36,7 @@ export const PROJECTS= '/api/projects'
 export const PROJECT_DETAIL= (id: number | string)=> `/api/projects/${id}`
 export const PROJECT_STATUS= (id: number | string)=> `/api/projects/${id}/status`
 export const PROJECT_UPDATES= (id: number | string)=> `/api/projects/${id}/updates`
+export const MY_PROJECTS= `/api/projects/me/list`
 
 export const SEARCH= '/api/search'
 

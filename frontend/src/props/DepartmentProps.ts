@@ -1,4 +1,4 @@
-import AvatarNode from "../components/AvatarNode";
+import AvatarNode from "../components/user/AvatarNode";
 
 
 export const nodeTypes = {

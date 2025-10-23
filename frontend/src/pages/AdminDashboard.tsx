@@ -19,8 +19,8 @@ import { createAccount, deleteAccount, disableAccount, enableAccount, listAccoun
 import { getDepartments } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
 import { getProjects, deleteProject, createProject, type ProjectItem } from "../services/project.service";
-import { DashboardStats } from "../components/DashboardStats";
-import ImportAccountsDialog from "../components/ImportAccountsDialog";
+import { DashboardStats } from "../components/management/DashboardStats";
+import ImportAccountsDialog from "../components/management/ImportAccountsDialog";
 
 type TabKey = 'dashboard' | 'accounts' | 'projects';
 

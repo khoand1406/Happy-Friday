@@ -6,19 +6,47 @@ import {
   CardContent,
   Button,
   Grid,
-  CircularProgress,
-  Divider,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MainLayout from "../layout/MainLayout";
 
 import type { Update } from "../props/Mock";
 import type { EventResponse } from "../models/response/event.response";
+import { getIncomingEvents, getPastEvents } from "../services/events.service";
+import EventsPanel from "../components/event/EventPanel";
+
 
 export const DashboardPage = () => {
-  const [incomingEvents] = useState<EventResponse[]>([]);
-  const [pastEvents] = useState<EventResponse[]>([]);
-  const [loading] = useState(true);
+  const [incomingEvents, setIncomingEvents] = useState<EventResponse[]>([]);
+  const [pastEvents, setPastEvents] = useState<EventResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPastEvent = async () => {
+      try {
+        setLoading(true);
+        const result = await getPastEvents();
+        setPastEvents(result);
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    const fetchIncomingEvent= async()=>{
+      try {
+        setLoading(true);
+        const result= await getIncomingEvents();
+        setIncomingEvents(result);
+      } catch (error) {
+        console.log(error)
+      }finally{
+        setLoading(false);
+      }
+    }
+    fetchPastEvent();
+    fetchIncomingEvent();
+  }, []);
 
   const mockUpdates: Update[] = [
     {
@@ -46,21 +74,25 @@ export const DashboardPage = () => {
     },
   ];
 
-  
-
   return (
     <MainLayout>
       <Container sx={{ mt: 4, mb: 4 }}>
         <Grid container spacing={3}>
           {/* Cột trái - Updates */}
-          <Grid size= {{xs: 12, md: 8}}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <Typography variant="h5" gutterBottom>
               Latest Updates
             </Typography>
             <Grid container spacing={3}>
               {mockUpdates.map((update) => (
-                <Grid size= {{xs:12, sm: 6}} key={update.id}>
-                  <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                <Grid size={{ xs: 12, sm: 6 }} key={update.id}>
+                  <Card
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
                     <CardMedia
                       component="img"
                       height="140"
@@ -87,55 +119,7 @@ export const DashboardPage = () => {
             </Grid>
           </Grid>
 
-          {/* Cột phải - Events */}
-          <Grid size= {{xs:12, md: 4}}>
-            <Typography variant="h5" gutterBottom>
-              Incoming Events
-            </Typography>
-            {loading ? (
-              <CircularProgress size={24} />
-            ) : incomingEvents.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No upcoming events.
-              </Typography>
-            ) : (
-              incomingEvents.map((event) => (
-                <Card key={event.id} sx={{ mb: 2 }}>
-                  <CardContent>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {event.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(event.startdate).toLocaleString()}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-
-            <Divider sx={{ my: 3 }} />
-            <Typography variant="h6" gutterBottom>
-              Past Events
-            </Typography>
-            {loading ? (
-              <CircularProgress size={24} />
-            ) : pastEvents.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No past events.
-              </Typography>
-            ) : (
-              pastEvents.map((event) => (
-                <Card key={event.id} sx={{ mb: 2 }}>
-                  <CardContent>
-                    <Typography variant="subtitle1">{event.title}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(event.startdate).toLocaleString()}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </Grid>
+          <EventsPanel loading= {loading} incomingEvents={incomingEvents} pastEvents={pastEvents}></EventsPanel>
         </Grid>
       </Container>
     </MainLayout>

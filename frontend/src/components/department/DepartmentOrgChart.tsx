@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect, useMemo } from "react";
-import type { DepartmentResponse } from "../models/response/dep.response";
-import { useNavigate } from "react-router-dom";
 import ReactECharts from "echarts-for-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { DepartmentResponse } from "../../models/response/dep.response";
 
 type DepartmentOrgChartProps = {
   departments: DepartmentResponse[];

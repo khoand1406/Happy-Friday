@@ -1,6 +1,6 @@
 import { Box, Button, Card, CardContent, Grid, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import type { DepartmentResponse } from "../models/response/dep.response";
+import type { DepartmentResponse } from "../../models/response/dep.response";
 
 type Props = {
   department: DepartmentResponse[];

@@ -1,6 +1,6 @@
-import { Handle, Position } from "reactflow";
 import { Avatar, Tooltip } from "@mui/material";
-import type { UserResponse } from "../models/response/user.response";
+import { Handle, Position } from "reactflow";
+import type { UserResponse } from "../../models/response/user.response";
 
 interface AvatarNodeProps {
   data: {

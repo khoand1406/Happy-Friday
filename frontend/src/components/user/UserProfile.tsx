@@ -1,3 +1,4 @@
+import { EmailOutlined, LockOutlined, PhoneOutlined } from "@mui/icons-material";
 import {
   Avatar,
   Box,
@@ -10,17 +11,16 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
+  IconButton,
   Tab,
   Tabs,
   TextField,
   Typography,
-  IconButton,
 } from "@mui/material";
-import { EmailOutlined, PhoneOutlined, LockOutlined } from "@mui/icons-material";
 import { AxiosError } from "axios";
 import React from "react";
 import { toast } from "react-toastify";
-import type { UserProfileProps } from "../props/UserProps";
+import type { UserProfileProps } from "../../props/UserProps";
 
 interface TabPanelProps {
   children?: React.ReactNode;
