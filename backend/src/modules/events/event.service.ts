@@ -10,7 +10,6 @@ import {
   CreateEventResponse,
   EventDetailResponse,
   EventResponse,
-  EventResponseT,
   UpdateEventRequest,
 } from './dto/event.dto';
 
@@ -35,15 +34,14 @@ export class EventService {
     }
     return data as EventResponse[];
   }
-  async getIncomingEvents(): Promise<any> {
+  async getIncomingEvents(userId: string): Promise<EventResponse[]> {
     const now = new Date().toISOString();
     try {
       this.logger.log(`Querying incoming events with startDate >= ${now}`);
 
       const { data, error, status } = await supabaseAdmin
-        .from('events')
-        .select('id, title, content, "startDate", "endDate", "creatorId"')
-        .gte('startDate', now);
+        .rpc('get_upcoming_user_events', { uid: userId })
+        .order('startdate', { ascending: true });
 
       if (error) {
         this.logger.error(
@@ -57,11 +55,11 @@ export class EventService {
 
       const safeData = (data ?? []).filter((item, idx) => {
         const okId = item?.id !== undefined && item?.id !== null;
-        const okStart = !!item?.startDate;
-        const okEnd = !!item?.endDate;
+        const okStart = !!item?.startdate;
+        const okEnd = !!item?.enddate;
         if (!okId || !okStart || !okEnd) {
           this.logger.warn(
-            `Skipping invalid row at index ${idx}: id=${item?.id}, startDate=${item?.startDate}, endDate=${item?.endDate}`,
+            `Skipping invalid row at index ${idx}: id=${item?.id}, startDate=${item?.startdate}, endDate=${item?.enddate}`,
           );
           return false;
         }
@@ -75,12 +73,12 @@ export class EventService {
       });
 
       const mapped = safeData.map((item) => ({
-        id: typeof item.id === 'number' ? item.id : Number(item.id), 
+        id: typeof item.id === 'number' ? item.id : Number(item.id),
         title: item.title ?? 'No Title',
         content: item.content ?? '',
-        start: new Date(item.startDate),
-        end: new Date(item.endDate),
-        creatorId: String(item.creatorId),
+        startdate: new Date(item.startdate),
+        enddate: new Date(item.enddate),
+        creatorid: String(item.creatorid),
       }));
 
       this.logger.log(`Returning ${mapped.length} incoming events`);
@@ -92,23 +90,23 @@ export class EventService {
       );
     }
   }
-  async getPastEvents(): Promise<EventResponseT[]> {
-    const { data, error } = await supabaseAdmin
-      .from('events')
-      .select('*')
-      .lt('endDate', new Date().toISOString());
+  async getPastEvents(userId: string): Promise<EventResponse[]> {
+    const { data, error } = await supabaseAdmin.rpc('get_past_user_events', {
+      uid: userId,
+    });
+
     if (error) {
       throw new InternalServerErrorException(
         'Internal Server Error: ' + error.message,
       );
     }
-    const mapped= data.map((item)=>({
-      id: typeof item.id === 'number' ? item.id : Number(item.id), 
-        title: item.title ?? 'No Title',
-        content: item.content ?? '',
-        start: new Date(item.startDate),
-        end: new Date(item.endDate),
-        creatorid: String(item.creatorId),
+    const mapped = data.map((item) => ({
+      id: typeof item.id === 'number' ? item.id : Number(item.id),
+      title: item.title ?? 'No Title',
+      content: item.content ?? '',
+      startdate: new Date(item.startdate),
+      enddate: new Date(item.enddate),
+      creatorid: String(item.creatorid),
     }));
 
     return mapped;
@@ -138,8 +136,8 @@ export class EventService {
       .insert({
         title: model.title ?? 'No title',
         content: model.content ?? 'No content',
-        startDate: toUTC(model.startDate),
-        endDate: toUTC(model.endDate),
+        startDate: model.startDate,
+        endDate: model.endDate,
         creatorId: model.creatorId,
       })
       .select()
@@ -189,19 +187,14 @@ export class EventService {
   }
 
   async updateEvent(eventId: number, model: UpdateEventRequest): Promise<void> {
-    const toUTC = (date: any) => {
-      const d = new Date(date);
-      return new Date(
-        d.getTime() - d.getTimezoneOffset() * 60000,
-      ).toISOString();
-    };
+    
     const { error } = await supabaseAdmin
       .from('events')
       .update({
         title: model.title ? model.title : 'No Title',
         content: model.content ? model.content : 'No Content',
-        startDate: model.startDate ? toUTC(model.startDate) : new Date(),
-        endDate: model.endDate ? toUTC(model.endDate) : new Date(),
+        startDate: model.startDate,
+        endDate: model.endDate,
       })
       .eq('id', eventId);
 

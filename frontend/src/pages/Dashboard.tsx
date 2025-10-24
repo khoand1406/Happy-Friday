@@ -14,12 +14,14 @@ import type { Update } from "../props/Mock";
 import type { EventResponse } from "../models/response/event.response";
 import { getIncomingEvents, getPastEvents } from "../services/events.service";
 import EventsPanel from "../components/event/EventPanel";
+import { EventContext } from "../context/EventContext";
 
 
 export const DashboardPage = () => {
   const [incomingEvents, setIncomingEvents] = useState<EventResponse[]>([]);
   const [pastEvents, setPastEvents] = useState<EventResponse[]>([]);
   const [loading, setLoading] = useState(true);
+ 
 
   useEffect(() => {
     const fetchPastEvent = async () => {
@@ -33,20 +35,22 @@ export const DashboardPage = () => {
         setLoading(false);
       }
     };
-    const fetchIncomingEvent= async()=>{
-      try {
-        setLoading(true);
-        const result= await getIncomingEvents();
-        setIncomingEvents(result);
-      } catch (error) {
-        console.log(error)
-      }finally{
-        setLoading(false);
-      }
-    }
+    
     fetchPastEvent();
-    fetchIncomingEvent();
+    fetchIncomingEvents();
   }, []);
+
+  const fetchIncomingEvents = async () => {
+    try {
+      setLoading(true);
+      const result = await getIncomingEvents();
+      setIncomingEvents(result);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const mockUpdates: Update[] = [
     {
@@ -75,7 +79,8 @@ export const DashboardPage = () => {
   ];
 
   return (
-    <MainLayout>
+    <EventContext.Provider value={{ refreshEvents: fetchIncomingEvents }}>
+      <MainLayout>
       <Container sx={{ mt: 4, mb: 4 }}>
         <Grid container spacing={3}>
           {/* Cột trái - Updates */}
@@ -123,5 +128,7 @@ export const DashboardPage = () => {
         </Grid>
       </Container>
     </MainLayout>
+    </EventContext.Provider>
+    
   );
 };

@@ -2,8 +2,8 @@ export interface EventResponse{
     id: number;
     title: string;
     content: string;
-    start: string;
-    end: string;
+    startdate: string;
+    enddate: string;
     creatorid: string;
 }
 
@@ -11,8 +11,8 @@ export interface EventDetailResponse{
     id: number;
     title: string;
     content: string;
-    startDate: Date;
-    endDate: Date;
+    startDate: string;
+    endDate: string;
     creatorId: string;
     creator: UserBasicInfo;
     attendees: Invite[];
@@ -36,8 +36,8 @@ export interface CreateEventResponse{
     id: number;
     title: string;
     content: string;
-    startDate: Date;
-    endDate: Date;
+    startDate: string;
+    endDate: string;
     creatorId: string;
 }
 

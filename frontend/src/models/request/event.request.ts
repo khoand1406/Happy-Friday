@@ -1,9 +1,8 @@
 export interface CreateEventRequest{
     title: string;
     content: string;
-    startDate: Date;
-    endDate: Date;
-    
+    startDate: string; // ISO string
+  endDate: string;   
     invitees: string[]; // array of user ids
 }
 
@@ -12,7 +11,7 @@ export interface CreateEventRequest{
 export interface UpdateEventRequest{
     title?: string;
     content?: string;
-    startDate?: Date;
-    endDate?: Date;
+    startDate?: string;
+    endDate?: string;
     invitees?: string[];
 }

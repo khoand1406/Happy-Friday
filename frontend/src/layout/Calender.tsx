@@ -22,6 +22,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useRef } from "react";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -50,8 +51,12 @@ import {
   updateEvent,
 } from "../services/events.service";
 import { getMembers } from "../services/user.service";
+import {
+  formatDate,
+  formatDateLocal,
+  toHanoiTime,
+} from "../utils/DateFormat";
 import MainLayout from "./MainLayout";
-import { formatDateHanoi } from "../utils/DateFormat";
 
 export default function CalendarLayout() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -78,7 +83,7 @@ export default function CalendarLayout() {
   const hasAccepted = currentInvite?.status === true;
   const [confirmed, setConfirmed] = useState<Invite[]>([]);
   const [pending, setPending] = useState<Invite[]>([]);
-
+  const calendarRef = useRef<FullCalendar | null>(null);
   const handleAddEvent = async () => {
     if (!newEvent.start || !newEvent.end) {
       toast.warning("Please fill in all required fields!");
@@ -88,8 +93,8 @@ export default function CalendarLayout() {
     const payload: CreateEventRequest = {
       title: newEvent.title,
       content: newEvent.content,
-      startDate: new Date(newEvent.start),
-      endDate: new Date(newEvent.end),
+      startDate: new Date(newEvent.start + ":00+07:00").toISOString(),
+      endDate: new Date(newEvent.end + ":00+07:00").toISOString(),
       invitees: selectedUser.map((user) => user.user_id),
     };
 
@@ -97,9 +102,32 @@ export default function CalendarLayout() {
       if (editMode && editingEventId) {
         await updateEvent(payload, editingEventId);
         toast.success("Event updated successfully!");
+        const calendarApi = calendarRef.current?.getApi();
+        const existingEvent = calendarApi?.getEventById(
+          editingEventId.toString()
+        );
+        if (existingEvent) {
+          existingEvent.setProp("title", payload.title);
+          existingEvent.setStart(new Date(payload.startDate));
+          existingEvent.setEnd(new Date(payload.endDate));
+        }
       } else {
-        await createEvent(payload);
+        const created = await createEvent(payload);
+
         toast.success("Event created successfully!");
+
+        const calendarApi = calendarRef.current?.getApi();
+        if (calendarApi && created) {
+          calendarApi.addEvent({
+            id: created.id.toString(),
+            title: created.title,
+            start: new Date(created.startDate),
+            end: new Date(created.endDate),
+            backgroundColor: "rgba(246, 243, 156, 0.8)",
+            borderColor: "#f5b800",
+            textColor: "#000",
+          });
+        }
       }
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -123,11 +151,11 @@ export default function CalendarLayout() {
         const mapped = data.map((item) => ({
           id: item.id.toString(),
           title: item.title,
-          start: new Date(item.start),
-          end: new Date(item.end),
-          backgroundColor: "rgba(37, 35, 19, 0.3)",
-          borderColor: "rgba(255, 213, 90, 0.6)",
-          textColor: "#333",
+          start: toHanoiTime(item.startdate),
+          end: toHanoiTime(item.enddate),
+          backgroundColor: "rgba(246, 243, 156, 0.8)",
+          borderColor: "#f5b800",
+          textColor: "#000",
         }));
         successCallback(mapped);
       } catch (error) {
@@ -192,7 +220,7 @@ export default function CalendarLayout() {
       >
         {/* SIDE CALENDAR */}
         <Grid
-          size={{ xs: 3 }}
+          size={{ xs: 4 }}
           sx={{
             position: "sticky",
             top: 0,
@@ -217,7 +245,7 @@ export default function CalendarLayout() {
 
         {/* MAIN CALENDAR */}
         <Grid
-          size={{ xs: 9 }}
+          size={{ xs: 8 }}
           sx={{
             height: "100%",
             overflowY: "auto",
@@ -244,6 +272,8 @@ export default function CalendarLayout() {
           </Box>
 
           <FullCalendar
+            timeZone="local"
+            ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView="timeGridWeek"
             locale={enLocale}
@@ -368,7 +398,15 @@ export default function CalendarLayout() {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenModal(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                setOpenModal(false);
+                setNewEvent({ title: "", content: "", start: "", end: "" });
+                setSelectedUser([]);
+              }}
+            >
+              Cancel
+            </Button>
             <Button variant="contained" onClick={handleAddEvent}>
               Save
             </Button>
@@ -409,8 +447,8 @@ export default function CalendarLayout() {
 
                 {/* Time */}
                 <Typography color="text.secondary">
-                  🕒 {formatDateHanoi(eventDetail.startDate).replace("T", " ")}{" "}
-                  → {formatDateHanoi(eventDetail.endDate).replace("T", " ")}
+                  🕒 {formatDateLocal(eventDetail.startDate).replace("T", " ")}{" "}
+                  → {formatDateLocal(eventDetail.endDate).replace("T", " ")}
                 </Typography>
                 <Box
                   display="flex"
@@ -573,8 +611,8 @@ export default function CalendarLayout() {
                       setNewEvent({
                         title: eventDetail.title,
                         content: eventDetail.content,
-                        start: formatDateHanoi(eventDetail.startDate),
-                        end: formatDateHanoi(eventDetail.endDate),
+                        start: formatDate(eventDetail.startDate),
+                        end: formatDate(eventDetail.endDate),
                       });
                       setSelectedUser(
                         eventDetail.attendees?.map((u) => ({
@@ -634,7 +672,7 @@ export default function CalendarLayout() {
                     </>
                   ) : (
                     <Typography color="text.secondary" sx={{ mr: 2 }}>
-                      ✅ You’ve accepted this event
+                      ✅ Accepted
                     </Typography>
                   )}
                 </>

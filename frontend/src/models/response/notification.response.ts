@@ -6,5 +6,6 @@ export interface NotificationResponse{
     content: string,
     is_read: boolean,
     created_at: Date,
-    eventId: number| null
+    eventId: number
+    status: boolean
 }
