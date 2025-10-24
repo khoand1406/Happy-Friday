@@ -21,6 +21,9 @@ export interface EventDetailResponse {
 interface UserBasicInfo {
   id: string;
   name: string;
+  email: string
+  department_name: string
+  role_dep: string
   avatarUrl: string;
 }
 
@@ -28,6 +31,9 @@ interface Invite {
   user_id: string;
   name: string;
   avatarUrl: string;
+  email: string
+  department_name: string
+  role_dep: string
   status: boolean;
   joined_at: Date | null;
 }

@@ -1,9 +1,9 @@
 import { AxiosError } from "axios";
-import { BaseURl, CHANGE_PASSWORD, MEMBER_LIST, MEMBERS, UPDATE_PROFILE, USER_PROFILE } from "../constraint/ApiConstraint";
-import ApiHelper from "../helper/ApiHelper"
-import type { UserBasicRespone, UserProfileResponse, UserResponse, UserUpdateResponse } from "../models/response/user.response"
+import { BaseURl, CHANGE_PASSWORD, MEMBER_LIST, MEMBER_PROFILE, MEMBERS, UPDATE_PROFILE, USER_PROFILE } from "../constraint/ApiConstraint";
+import ApiHelper from "../helper/ApiHelper";
 import type { ChangePasswordRequest } from "../models/request/auth/auth.request";
 import type { ChangePasswordResponse } from "../models/response/auth.response";
+import type { UserBasicRespone, UserProfileResponse, UserResponse, UserUpdateResponse } from "../models/response/user.response";
 
 
 export const getUserProfile= async(): Promise<UserProfileResponse> => {
@@ -65,6 +65,19 @@ export const getMembers= async(): Promise<UserBasicRespone[]>=> {
         const apiHelper= new ApiHelper(BaseURl);
         const response= await apiHelper.get(MEMBERS);
         return response;
+    } catch (error) {
+        if(error instanceof AxiosError){
+            throw error;
+        }
+        throw error;
+    }
+}
+
+export const getMemberInfo= async(id: string):Promise<UserProfileResponse>=>{
+    try {
+        const apiHelper= new ApiHelper(BaseURl);
+        const response=await apiHelper.get(MEMBER_PROFILE(id));
+        return response as UserProfileResponse;
     } catch (error) {
         if(error instanceof AxiosError){
             throw error;

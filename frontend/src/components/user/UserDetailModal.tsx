@@ -14,11 +14,14 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { Business, Email } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
+import { id } from "date-fns/locale";
 
 interface UserDetailModalProps {
   open: boolean;
   onClose: () => void;
   userData: {
+    
     name: string;
     email: string;
     phone: string;
@@ -31,11 +34,12 @@ const UserDetailModal = ({ open, onClose, userData }: UserDetailModalProps) => {
   if (!userData) return null;
 
   const { name, email, role, avatarUrl } = userData;
+  const navigator= useNavigate();
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ m: 0, p: 2 }}>
-        Thông tin người dùng
+        Profile
         <IconButton
           aria-label="close"
           onClick={onClose}
@@ -111,6 +115,7 @@ const UserDetailModal = ({ open, onClose, userData }: UserDetailModalProps) => {
             fontWeight: 600,
             borderRadius: 2,
           }}
+          onClick={()=> navigator(`/member/${id}`)}
         >
           Full Profile
         </Button>

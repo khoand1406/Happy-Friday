@@ -12,6 +12,7 @@ import ProjectList from './pages/ProjectList'
 import ProjectDetail from './pages/ProjectDetail'
 import AdminProjectDetail from './pages/AdminProjectDetail'
 import SearchResultPage from './pages/SearchResultPage'
+import { ProfileUserPage } from './pages/MemberProfile'
 
 const App: React.FC = () => {
   return (
@@ -30,6 +31,7 @@ const App: React.FC = () => {
         <Route element= {<ProjectList />} path='/projects'></Route>
         <Route element= {<ProjectDetail />} path='/projects/:id'></Route>
         <Route element= {<SearchResultPage ></SearchResultPage>} path='/search'></Route>
+        <Route element= {<ProfileUserPage></ProfileUserPage>} path='/member/:id'></Route>
 
     </Routes>
     </BrowserRouter>

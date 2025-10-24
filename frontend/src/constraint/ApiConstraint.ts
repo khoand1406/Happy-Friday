@@ -7,6 +7,7 @@ export const USER_PROFILE= '/api/users/me'
 export const UPDATE_PROFILE= '/api/users/me/update_profile'
 export const CHANGE_PASSWORD= '/api/users/change-password'
 export const MEMBER_LIST= (depId: number)=> `/api/users/member-list/${depId}`
+export const MEMBER_PROFILE= (userId: string)=> `/api/users/member/${userId}`
 export const DEPARTMENT_LIST= '/api/departments'
 export const DEPARTMENT_DETAIL= (id: number)=> `/api/departments/${id}`
 // Accounts (admin)

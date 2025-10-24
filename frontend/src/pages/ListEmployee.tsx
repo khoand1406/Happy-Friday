@@ -148,6 +148,7 @@ export default function DepartmentDetail() {
   const employee = node.data?.employee;
   if (employee) {
     setSelectedEmployee({
+      
       name: employee.name,
       email: employee.email || "Chưa có email",
       phone: employee.phone || "Chưa có số điện thoại",
@@ -197,6 +198,7 @@ export default function DepartmentDetail() {
         userData={
           selectedEmployee
             ? {
+                
                 name: selectedEmployee.name,
                 email: selectedEmployee.email,
                 phone: selectedEmployee.phone,
