@@ -5,7 +5,7 @@ export interface UserProfileResponse{
     phone: string;
     department_name: string;
     avatar_url: string;
-    projects: { project_id: number; project_name: string; description: number, status: string, project_role: string }[];
+    projects: { project_id: number; project_name: string; description: string, status: string, project_role: string }[];
 }
 
 export interface UserUpdateResponse{

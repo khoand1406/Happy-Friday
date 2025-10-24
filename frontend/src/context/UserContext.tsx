@@ -17,7 +17,7 @@ type User = {
   avatar_url?: string;
   email?: string
   department_name?: string
-  projects?: { project_id: number; project_name: string; description: number, status: string, project_role: string }[]
+  projects?: { project_id: number; project_name: string; description: string, status: string, project_role: string }[]
 };
 
 type UserContextType = {

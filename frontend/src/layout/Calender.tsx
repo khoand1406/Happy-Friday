@@ -51,12 +51,9 @@ import {
   updateEvent,
 } from "../services/events.service";
 import { getMembers } from "../services/user.service";
-import {
-  formatDate,
-  formatDateLocal,
-  toHanoiTime,
-} from "../utils/DateFormat";
+import { formatDate, formatDateLocal, toHanoiTime } from "../utils/DateFormat";
 import MainLayout from "./MainLayout";
+import UserDetailModal from "../components/user/UserDetailModal";
 
 export default function CalendarLayout() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -75,6 +72,7 @@ export default function CalendarLayout() {
   const [selectedUser, setSelectedUser] = useState<UserBasicRespone[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [openUserModal, setOpen]= useState(false);
   const { user } = useUser();
   const [expanded, setExpanded] = useState(false);
   const currentInvite = eventDetail?.attendees?.find(
@@ -144,6 +142,21 @@ export default function CalendarLayout() {
     }
   };
 
+  const handleDateClick= (info: any)=> {
+    const start= new Date(info.date);
+    const end= new Date(start.getTime()+ 60*60*1000);
+    const formatInput= (d:Date)=>  d.toISOString().slice(0, 16);
+
+    setNewEvent({
+      title: "",
+      content: "",
+      start: formatInput(start),
+      end: formatInput(end)
+    })
+    setOpenModal(true);
+    setSelectedDate(info.date);
+  }
+
   const fetchEvents = useCallback(
     async (fetchInfo: any, successCallback: any, failureCallback: any) => {
       try {
@@ -211,6 +224,15 @@ export default function CalendarLayout() {
       fetchUsers();
     }
   }, [openModal]);
+  const handleDateChange = (newDate: any) => {
+    setSelectedDate(newDate);
+
+    const calendarApi = calendarRef.current?.getApi();
+    if (calendarApi && newDate) {
+      calendarApi.gotoDate(newDate);
+    }
+  };
+
   return (
     <MainLayout>
       <Grid
@@ -235,10 +257,7 @@ export default function CalendarLayout() {
           </Typography>
           <Paper variant="outlined" sx={{ p: 1 }}>
             <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DateCalendar
-                value={selectedDate}
-                onChange={(newDate) => setSelectedDate(newDate)}
-              />
+              <DateCalendar value={selectedDate} onChange={handleDateChange} />
             </LocalizationProvider>
           </Paper>
         </Grid>
@@ -275,7 +294,7 @@ export default function CalendarLayout() {
             timeZone="local"
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
+            initialView="dayGridMonth"
             locale={enLocale}
             firstDay={0}
             headerToolbar={{
@@ -297,6 +316,7 @@ export default function CalendarLayout() {
                 console.error("Failed to fetch event detail:", error);
               }
             }}
+            dateClick={handleDateClick}
           />
         </Grid>
 
@@ -520,9 +540,12 @@ export default function CalendarLayout() {
                                   user.name
                                 )}&background=random`
                               }
+                              
                               sx={{ width: 32, height: 32 }}
+                              onClick={() => setOpen(true)}
                             />
                             <Typography variant="body2">{user.name}</Typography>
+                            <UserDetailModal open= {openUserModal} onClose={()=> setOpen(false)} userData={{ name: user.name, email: user.email, avatarUrl: user.avatar_url, phone: "", role: `${user.role_dep} of ${user.department_name}`}}></UserDetailModal>
                           </Grid>
                         ))
                       ) : (
@@ -568,9 +591,12 @@ export default function CalendarLayout() {
                                   user.name
                                 )}&background=random`
                               }
+                              
                               sx={{ width: 32, height: 32 }}
+                              onClick={() => setOpen(true)}
                             />
                             <Typography variant="body2">{user.name}</Typography>
+                            <UserDetailModal open= {openUserModal} onClose={()=> setOpen(false)} userData={{name: user.name, email: user.email, avatarUrl: user.avatar_url, phone: "", role: `${user.role_dep} of ${user.department_name}`}}></UserDetailModal>
                           </Grid>
                         ))
                       ) : (

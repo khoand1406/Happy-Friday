@@ -8,8 +8,17 @@ export interface UserProfileProps {
   phone: string;
   department_name: string | undefined;
   avatar_url: string ;
-  projects: { project_id: number; project_name: string; description: number, status: string, project_role: string }[] | undefined;
+  projects: { project_id: number; project_name: string; description: string, status: string, project_role: string }[] | undefined;
   updateSubmit: (formData: FormData)=> Promise<UserUpdateResponse>
   changePassword: (model: ChangePasswordRequest)=> Promise<ChangePasswordResponse>
   
+}
+
+export interface MemberProfileProps{
+  name: string;
+  email: string;
+  phone: string;
+  department_name: string | undefined;
+  avatar_url: string ;
+  projects: { project_id: number; project_name: string; description: string, status: string, project_role: string }[] | undefined;
 }

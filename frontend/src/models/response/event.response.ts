@@ -18,18 +18,24 @@ export interface EventDetailResponse{
     attendees: Invite[];
 }
 
-interface UserBasicInfo{
-    id: string;
-    name: string;
-    avatar_url: string;
+interface UserBasicInfo {
+  id: string;
+  name: string;
+  email: string
+  department_name: string
+  role_dep: string
+  avatar_url: string;
 }
 
-export interface Invite{
-    user_id: string;
-    name: string;
-    avatar_url: string;
-    status: boolean;
-    joined_at: Date | null;
+export interface Invite {
+  user_id: string;
+  name: string;
+  avatar_url: string;
+  email: string
+  department_name: string
+  role_dep: string
+  status: boolean;
+  joined_at: Date | null;
 }
 
 export interface CreateEventResponse{

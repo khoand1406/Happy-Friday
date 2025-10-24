@@ -75,6 +75,12 @@ export class UserController {
     });
     return result;
   }
+  @UseGuards(JwtAuthGuard)
+  @Get('member/:id')
+  async getMemberProfile(@Param('id') id: string){
+    const result= await this.userServices.getUserProfile(id);
+    return result;
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
@@ -82,4 +88,6 @@ export class UserController {
     const result= await this.userServices.changePassword(payload);
     return result;
   }
+
+  
 }

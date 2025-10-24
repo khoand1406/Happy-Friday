@@ -114,7 +114,7 @@ export class EventService {
 
   async getDetailEvent(eventId: number): Promise<EventDetailResponse> {
     const { data, error } = await supabaseAdmin
-      .from('event_with_attendees_json')
+      .from('event_with_user_attendences')
       .select('*')
       .eq('id', eventId)
       .single();
