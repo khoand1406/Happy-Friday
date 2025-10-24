@@ -57,8 +57,8 @@ export function formatDateParts(dateInput: string | Date) {
 }
 
 export function formatTimeRange(startDate: string, endDate:string) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start =  toHanoiTime(startDate);
+  const end = toHanoiTime(endDate);
 
   const startTime = start.toLocaleTimeString('vi-VN', {
     hour: '2-digit',
@@ -71,4 +71,18 @@ export function formatTimeRange(startDate: string, endDate:string) {
   });
 
   return `${startTime} - ${endTime}`;
+}
+
+export function formatDate(utcDateString: string) {
+  const date = new Date(utcDateString);
+  const local = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+  return local.replace(", ", "T"); // "YYYY-MM-DDTHH:mm"
 }

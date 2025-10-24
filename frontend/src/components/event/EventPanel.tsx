@@ -13,6 +13,7 @@ import EventBusyIcon from "@mui/icons-material/EventBusy";
 import EventCard from "./EventCard";
 import EventDetailModal from "./EventDetailModal"; // 👈 Import modal
 import type { EventResponse } from "../../models/response/event.response";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   incomingEvents: EventResponse[];
@@ -30,6 +31,7 @@ const EventsPanel: React.FC<Props> = ({
   const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(
     null
   ); // 👈 Modal state
+  const navigate= useNavigate();
 
   const pageSize = 3;
 
@@ -60,14 +62,14 @@ const EventsPanel: React.FC<Props> = ({
       </Typography>
 
       <Box sx={{ mb: 2 }}>
-        <Button variant="contained" color="success" fullWidth>
+        <Button variant="contained" color="success" fullWidth onClick={()=> navigate('/calendar')}>
           New Event
         </Button>
       </Box>
 
       <Tabs value={tabIndex} onChange={handleTabChange} variant="fullWidth">
-        <Tab label="Sắp tới" />
-        <Tab label="Đã qua" />
+        <Tab label="Future" />
+        <Tab label="Pass" />
       </Tabs>
 
       <Box sx={{ mt: 2 }}>
@@ -78,8 +80,8 @@ const EventsPanel: React.FC<Props> = ({
             <EventBusyIcon color="disabled" />
             <Typography variant="body2" color="text.secondary">
               {tabIndex === 0
-                ? "Không có cuộc họp sắp tới."
-                : "Không có cuộc họp đã qua."}
+                ? "No incoming events"
+                : "No past events"}
             </Typography>
           </Box>
         ) : (

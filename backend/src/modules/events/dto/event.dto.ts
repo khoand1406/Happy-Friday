@@ -53,7 +53,7 @@ export interface CreateEventResponse {
 export interface UpdateEventRequest {
   title?: string;
   content?: string;
-  startDate?: Date;
-  endDate?: Date;
+  startDate: string;
+  endDate: string;
   invitees?: string[];
 }

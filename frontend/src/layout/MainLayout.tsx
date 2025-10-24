@@ -47,6 +47,8 @@ import type { NotificationResponse } from "../models/response/notification.respo
 import type { ProjectResponse } from "../models/response/project.response";
 import { getProjectsByUserId } from "../services/project.service";
 import { acceptEvent, rejectEvent } from "../services/events.service";
+import { useEventContext } from "../context/EventContext";
+import { toast, ToastContainer } from "react-toastify";
 
 const drawerWidth = 240;
 
@@ -103,6 +105,7 @@ export default function MainLayout({
   const handleCloseNotifications = () => {
     setOpenNotifications(false);
   };
+   const { refreshEvents } = useEventContext();
 
   const menuItems = [
     { text: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
@@ -129,7 +132,6 @@ export default function MainLayout({
 
     if (openNotifications) {
       fetchNotifications();
-
       intervalId = setInterval(fetchNotifications, 30000);
     }
 
@@ -270,6 +272,9 @@ export default function MainLayout({
   async function handleAccept(eventId: number) {
     try {
       await acceptEvent(eventId);
+      toast.info("You have confirmed this event. Please be in-time.")
+      refreshEvents();
+      setOpenNotifications(false)
     } catch (error) {
       console.log(error);
     }
@@ -278,6 +283,8 @@ export default function MainLayout({
   async function handleDecline(eventId: number){
     try {
       await rejectEvent(eventId);
+      setOpenNotifications(false);
+      toast.info("You have rejected this event. ")
     } catch (error) {
       console.log(error);
     }
@@ -531,8 +538,10 @@ export default function MainLayout({
         </Box>
       ))
     )}
+    <ToastContainer position="top-right" autoClose={3000} />
   </Box>
       </Popover>
     </ThemeProvider>
+    
   );
 }

@@ -39,10 +39,9 @@ export class EventService {
     try {
       this.logger.log(`Querying incoming events with startDate >= ${now}`);
 
-      const { data, error, status } = await supabaseAdmin.rpc(
-        'get_upcoming_user_events',
-        { uid: userId },
-      ).order('startdate', {ascending: true});
+      const { data, error, status } = await supabaseAdmin
+        .rpc('get_upcoming_user_events', { uid: userId })
+        .order('startdate', { ascending: true });
 
       if (error) {
         this.logger.error(
@@ -92,10 +91,9 @@ export class EventService {
     }
   }
   async getPastEvents(userId: string): Promise<EventResponse[]> {
-    const { data, error } = await supabaseAdmin.rpc(
-      'get_past_user_events',
-      { uid: userId },
-    );
+    const { data, error } = await supabaseAdmin.rpc('get_past_user_events', {
+      uid: userId,
+    });
 
     if (error) {
       throw new InternalServerErrorException(
@@ -189,19 +187,14 @@ export class EventService {
   }
 
   async updateEvent(eventId: number, model: UpdateEventRequest): Promise<void> {
-    const toUTC = (date: any) => {
-      const d = new Date(date);
-      return new Date(
-        d.getTime() - d.getTimezoneOffset() * 60000,
-      ).toISOString();
-    };
+    
     const { error } = await supabaseAdmin
       .from('events')
       .update({
         title: model.title ? model.title : 'No Title',
         content: model.content ? model.content : 'No Content',
-        startDate: model.startDate ? toUTC(model.startDate) : new Date(),
-        endDate: model.endDate ? toUTC(model.endDate) : new Date(),
+        startDate: model.startDate,
+        endDate: model.endDate,
       })
       .eq('id', eventId);
 

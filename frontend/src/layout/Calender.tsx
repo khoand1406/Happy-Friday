@@ -51,7 +51,11 @@ import {
   updateEvent,
 } from "../services/events.service";
 import { getMembers } from "../services/user.service";
-import { formatDateHanoi, formatDateLocal, toHanoiTime } from "../utils/DateFormat";
+import {
+  formatDate,
+  formatDateLocal,
+  toHanoiTime,
+} from "../utils/DateFormat";
 import MainLayout from "./MainLayout";
 
 export default function CalendarLayout() {
@@ -98,6 +102,15 @@ export default function CalendarLayout() {
       if (editMode && editingEventId) {
         await updateEvent(payload, editingEventId);
         toast.success("Event updated successfully!");
+        const calendarApi = calendarRef.current?.getApi();
+        const existingEvent = calendarApi?.getEventById(
+          editingEventId.toString()
+        );
+        if (existingEvent) {
+          existingEvent.setProp("title", payload.title);
+          existingEvent.setStart(new Date(payload.startDate));
+          existingEvent.setEnd(new Date(payload.endDate));
+        }
       } else {
         const created = await createEvent(payload);
 
@@ -259,7 +272,7 @@ export default function CalendarLayout() {
           </Box>
 
           <FullCalendar
-          timeZone="local"
+            timeZone="local"
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView="timeGridWeek"
@@ -385,7 +398,15 @@ export default function CalendarLayout() {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenModal(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                setOpenModal(false);
+                setNewEvent({ title: "", content: "", start: "", end: "" });
+                setSelectedUser([]);
+              }}
+            >
+              Cancel
+            </Button>
             <Button variant="contained" onClick={handleAddEvent}>
               Save
             </Button>
@@ -590,8 +611,8 @@ export default function CalendarLayout() {
                       setNewEvent({
                         title: eventDetail.title,
                         content: eventDetail.content,
-                        start: formatDateHanoi(eventDetail.startDate),
-                        end: formatDateHanoi(eventDetail.endDate),
+                        start: formatDate(eventDetail.startDate),
+                        end: formatDate(eventDetail.endDate),
                       });
                       setSelectedUser(
                         eventDetail.attendees?.map((u) => ({
@@ -651,7 +672,7 @@ export default function CalendarLayout() {
                     </>
                   ) : (
                     <Typography color="text.secondary" sx={{ mr: 2 }}>
-                      ✅ You’ve accepted this event
+                      ✅ Accepted
                     </Typography>
                   )}
                 </>
