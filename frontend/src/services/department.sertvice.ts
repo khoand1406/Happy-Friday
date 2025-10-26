@@ -1,9 +1,9 @@
 import { AxiosError } from "axios";
 import { BaseURl, DEPARTMENT_DETAIL, DEPARTMENT_LIST } from "../constraint/ApiConstraint"
 import ApiHelper from "../helper/ApiHelper"
-import type { DepartmentRes, DepartmentResponse } from "../models/response/dep.response";
+import type { DepartmentRes } from "../models/response/dep.response";
 
-export const getDepartments = async() : Promise<DepartmentResponse[]>=>{
+export const getDepartments = async() : Promise<DepartmentRes[]>=>{
     try {
         const apiHelper= new ApiHelper(BaseURl);
         const response= await apiHelper.get(`${DEPARTMENT_LIST}`)
@@ -16,11 +16,11 @@ export const getDepartments = async() : Promise<DepartmentResponse[]>=>{
     }
 }
 
-export const getDepartment= async(id: number):Promise<DepartmentRes>=>{
+export const getDepartment= async(id: number):Promise<DepartmentRes[]>=>{
     try {
         const apiHelper= new ApiHelper(BaseURl);
         const response= await apiHelper.get(DEPARTMENT_DETAIL(id));
-        return response as DepartmentRes
+        return response as DepartmentRes[]
     } catch (error) {
         if(error instanceof AxiosError){
             throw new Error(error.response?.data.message || "Failed to fetch departments");

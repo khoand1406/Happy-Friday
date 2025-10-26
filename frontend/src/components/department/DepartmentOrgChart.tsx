@@ -1,212 +1,135 @@
-import ReactECharts from "echarts-for-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import type { DepartmentResponse } from "../../models/response/dep.response";
+import React, { useEffect, useRef, useState } from "react";
 
-type DepartmentOrgChartProps = {
-  departments: DepartmentResponse[];
-  centerName?: string;
-};
+import { OrgChart } from "d3-org-chart";
+import { Card, CardContent, Typography, Box } from "@mui/material";
+import type { DepartmentRes } from "../../models/response/dep.response";
+import UserDetailModal from "../user/UserDetailModal";
 
-export const DepartmentOrgChart: React.FC<DepartmentOrgChartProps> = ({
-  departments,
-  centerName = "Zen8Labs",
-}) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [size, setSize] = useState({ width: 900, height: 600 });
-  const navigator = useNavigate();
 
-  const handleDepartmentClick = (depid: number): void => {
-    navigator(`/departments/${depid}`);
-  };
+interface Props {
+  departments: DepartmentRes[];
+}
 
+interface OrgNode {
+  id: string;
+  parentId: string | null;
+  name: string;
+  position: string;
+  email?: string;
+  imageUrl?: string;
+}
+
+const DepartmentOrgChart: React.FC<Props> = ({ departments }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<any>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [openModal, setOpenModal] = useState(false);
   useEffect(() => {
-    const update = () => {
-      if (containerRef.current) {
-        setSize({
-          width: containerRef.current.clientWidth || 900,
-          height: containerRef.current.clientHeight || 600,
-        });
-      }
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
+    if (!departments.length) return;
 
-  const option = useMemo(() => {
-    const cx = size.width / 2;
-    const cy = size.height / 2;
-    const radius = Math.min(size.width, size.height) * 0.35;
-    const n = departments.length;
+    // Đảm bảo DOM đã có container
+    const timeout = setTimeout(() => {
+      const container = document.querySelector(".chart-container");
+      if (!container) return;
 
-    const nodes = [];
-    const links: Array<{
-      source: string;
-      target: string;
-      lineStyle: {
-        color: string;
-        width: number;
-        curveness: number;
-        type: string;
-        symbol: string[];
-      };
-    }> = [];
-
-    // Center node with gradient
-    nodes.push({
-      name: centerName,
-      x: cx,
-      y: cy,
-      symbolSize: [180, 100],
-      symbol: "rect",
-      itemStyle: {
-        color: {
-          type: "linear",
-          x: 0,
-          y: 0,
-          x2: 1,
-          y2: 1,
-          colorStops: [
-            { offset: 0, color: "#19984cff" },
-            { offset: 1, color: "#23c569ff" },
-          ],
-        },
-        borderRadius: 15,
-        borderColor: "#071525",
-        borderWidth: 2,
-        shadowBlur: 12,
-        shadowColor: "rgba(0,0,0,0.3)",
-      },
-
-      label: {
-        show: true,
-        formatter: `{b}`,
-        color: "#e4f137ff", // màu cam
-        fontSize: 14,
-        fontWeight: "bold",
-      },
-    });
-
-    // Department nodes
-    departments.forEach((dep, i) => {
-      const angle = (2 * Math.PI * i) / n - Math.PI / 2;
-      const x = cx + radius * Math.cos(angle);
-      const y = cy + radius * Math.sin(angle);
-
-      const memberCount = dep.memberCount ?? 0;
-      const width = 180 + Math.min(memberCount, 50);
-      const height = 100 + Math.min(memberCount, 30);
-
-      nodes.push({
-        name: dep.name,
-        x,
-        y,
-        symbolSize: [width, height],
-        symbol: "rect",
-        itemStyle: {
-          color: "#d4e157",
-          borderRadius: 15,
-          borderColor: "#aed581",
-          borderWidth: 2,
-          shadowBlur: 8,
-          shadowColor: "rgba(0,0,0,0.15)",
-        },
-        label: {
-          show: true,
-          formatter: `${dep.name}\n👥 ${memberCount} Members`,
-          color: "#fff", // trắng
-          fontSize: 10,
-          fontWeight: "small",
-          lineHeight: 20,
-          padding: [8, 10],
-        },
-
-        memberCount,
-        id: dep.id,
-        leader: dep.leader,
-      });
-
-      links.push({
-        source: centerName,
-        target: dep.name,
-        lineStyle: {
-          color: "#7cb342",
-          width: 4.5,
-          type: "solid",
-          curveness: 0.5,
-          symbol: ["none", "arrow"],
-        },
-      });
-    });
-
-    return {
-      animationDuration: 800,
-      animationEasing: "cubicOut",
-      tooltip: {
-        trigger: "item",
-        formatter: (params: any) => {
-          const d = params.data;
-          if (d.name === centerName) return `<strong>${centerName}</strong>`;
-          return `
-      <div style="min-width:220px">
-        <strong>${d.name}</strong><br/>
-      </div>`;
-        },
-      },
-
-      series: [
+      const mapped = [
         {
-          type: "graph",
-          layout: "none",
-          coordinateSystem: null,
-          roam: true,
-          data: nodes,
-          links,
-          lineStyle: {
-            width: 2,
-          },
-          emphasis: {
-            focus: "adjacency",
-            label: {
-              fontSize: 14,
-              fontWeight: "bold",
-              color: "#2e7d32",
-            },
-            itemStyle: {
-              borderColor: "#2e7d32",
-              borderWidth: 3,
-            },
-            lineStyle: {
-              width: 5,
-            },
-          },
+          id: "root",
+          parentId: null,
+          name: "Hien Nguyen",
+          position: "CEO",
+          imageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent("Hien Nguyen")}&background=random`,
         },
-      ],
-    };
-  }, [departments, size, centerName]);
+        ...departments.flatMap((dep) => {
+          const nodes = [];
+          nodes.push({
+            id: dep.leader.user_id,
+            parentId: "root",
+            name: dep.leader.name,
+            position: dep.department_name + " (Leader)",
+            email: dep.leader.email,
+            imageUrl: dep.leader.avatar_url?? `https://ui-avatars.com/api/?name=${encodeURIComponent(dep.leader.name)}&background=random`,
+          });
+          for (const member of dep.members) {
+            nodes.push({
+              id: member.user_id,
+              parentId: dep.leader.user_id,
+              name: member.name,
+              position: "Member",
+              email: member.email,
+              imageUrl: member.avatar_url?? `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=random`,
+            });
+          }
+          return nodes;
+        }),
+      ];
+
+      if (!chartInstance.current) {
+        chartInstance.current = new OrgChart()
+          .container(".chart-container")
+          .data(mapped)
+          .nodeWidth(() => 220)
+          .nodeHeight(() => 100)
+          .nodeContent((node) => {
+            const { name, position, imageUrl } = node.data as OrgNode;
+            return `
+    <div style="background:white;border-radius:8px;padding:8px;text-align:center">
+      <img src="${
+        imageUrl ?? ""
+      }" width="40" height="40" style="border-radius:50%"/>
+      <div>${name}</div>
+      <div style="font-size:12px;color:gray">${position}</div>
+    </div>
+  `;
+          })
+          .onNodeClick((d: any) => {
+        
+        const u = d.data as OrgNode;
+        setSelectedUser({
+          name: u.name,
+          email: u.email,
+          phone: "NOT AVAILABLE",
+          role: u.position,
+          avatarUrl: u.imageUrl,
+        });
+        setOpenModal(true);
+      })
+          .render()
+          .fit();
+      } else {
+        chartInstance.current.data(mapped).render().fit();
+      }
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [departments]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: "100%",
-        height: "80vh",
-        background: "#F8FAFC",
-        borderRadius: "12px",
-        padding: "16px",
-      }}
-    >
-      <ReactECharts
-        option={option}
-        style={{ height: "100%", width: "100%" }}
-        onEvents={{
-          click: (params: any) => {
-            const clickedDep = departments.find((d) => d.name === params.name);
-            if (clickedDep) handleDepartmentClick(clickedDep.id);
-          },
-        }}
+    <Card sx={{ p: 2 }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          ZEN8LAB'S STRUCTURE
+        </Typography>
+        <Box
+          ref={chartRef}
+          className="chart-container"
+          sx={{
+            width: "100%",
+            height: "80vh",
+            overflow: "auto",
+            backgroundColor: "#fafafa",
+            borderRadius: 2,
+          }}
+        />
+      </CardContent>
+      <UserDetailModal
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        userData={selectedUser}
       />
-    </div>
+    </Card>
+    
   );
 };
+
+export default DepartmentOrgChart;

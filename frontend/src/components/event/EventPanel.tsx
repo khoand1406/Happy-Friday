@@ -3,17 +3,13 @@ import {
   Grid,
   Typography,
   CircularProgress,
-  Tabs,
-  Tab,
   Box,
-  Button,
 } from "@mui/material";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
 
 import EventCard from "./EventCard";
-import EventDetailModal from "./EventDetailModal"; // 👈 Import modal
+import EventDetailModal from "./EventDetailModal";
 import type { EventResponse } from "../../models/response/event.response";
-import { useNavigate } from "react-router-dom";
 
 interface Props {
   incomingEvents: EventResponse[];
@@ -26,19 +22,7 @@ const EventsPanel: React.FC<Props> = ({
   pastEvents,
   loading,
 }) => {
-  const [tabIndex, setTabIndex] = useState(0);
-  const [page, setPage] = useState(0);
-  const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(
-    null
-  ); // 👈 Modal state
-  const navigate= useNavigate();
-
-  const pageSize = 3;
-
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTabIndex(newValue);
-    setPage(0);
-  };
+  const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(null);
 
   const handleOpenModal = (event: EventResponse) => {
     setSelectedEvent(event);
@@ -48,91 +32,62 @@ const EventsPanel: React.FC<Props> = ({
     setSelectedEvent(null);
   };
 
-  const events = tabIndex === 0 ? incomingEvents : pastEvents;
-  const totalPages = Math.ceil(events.length / pageSize);
-  const paginatedEvents = events.slice(
-    page * pageSize,
-    page * pageSize + pageSize
-  );
-
-  return (
-    <Grid size={{ xs: 12, md: 4 }}>
-      <Typography variant="h5" gutterBottom>
-        Don't miss the hits
-      </Typography>
-
-      <Box sx={{ mb: 2 }}>
-        <Button variant="contained" color="success" fullWidth onClick={()=> navigate('/calendar')}>
-          New Event
-        </Button>
+  const renderEventSection = (
+  title: string,
+  events: EventResponse[],
+  emptyMessage: string
+) => (
+  <Box
+    sx={{
+      mb: 4,
+      border: "1px solid #ccc",
+      borderRadius: 3,
+      p: 2,
+      backgroundColor: "#f9f9f9",
+    }}
+  >
+    <Typography variant="h6" sx={{ mb: 2 }}>
+      {title}
+    </Typography>
+    {loading ? (
+      <CircularProgress size={24} />
+    ) : events.length === 0 ? (
+      <Box display="flex" alignItems="center" gap={1}>
+        <EventBusyIcon color="disabled" />
+        <Typography variant="body2" color="text.secondary">
+          {emptyMessage}
+        </Typography>
       </Box>
-
-      <Tabs value={tabIndex} onChange={handleTabChange} variant="fullWidth">
-        <Tab label="Future" />
-        <Tab label="Pass" />
-      </Tabs>
-
-      <Box sx={{ mt: 2 }}>
-        {loading ? (
-          <CircularProgress size={24} />
-        ) : events.length === 0 ? (
-          <Box display="flex" alignItems="center" gap={1}>
-            <EventBusyIcon color="disabled" />
-            <Typography variant="body2" color="text.secondary">
-              {tabIndex === 0
-                ? "No incoming events"
-                : "No past events"}
-            </Typography>
-          </Box>
-        ) : (
+    ) : (
+      <Box display="flex" flexDirection="column" gap={2}>
+        {events.slice(0, 2).map((event) => (
           <Box
+            key={event.id}
+            onClick={() => handleOpenModal(event)}
             sx={{
-              border: "1px solid #ccc",
+              cursor: "pointer",
+              border: "1px solid #ddd",
               borderRadius: 2,
               p: 2,
-              mt: 1,
+              backgroundColor: "#fff",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
             }}
           >
-            {paginatedEvents.map((event) => (
-              <Box
-                key={event.id}
-                onClick={() => handleOpenModal(event)}
-                sx={{ cursor: "pointer" }}
-              >
-                <EventCard event={event} />
-              </Box>
-            ))}
-
-            {events.length > pageSize && (
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}
-              >
-                <Button
-                  variant="outlined"
-                  onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
-                  disabled={page === 0}
-                >
-                  Older
-                </Button>
-                <Typography variant="body2" sx={{ alignSelf: "center" }}>
-                  Page {page + 1} / {totalPages}
-                </Typography>
-                <Button
-                  variant="outlined"
-                  onClick={() =>
-                    setPage((prev) => Math.min(prev + 1, totalPages - 1))
-                  }
-                  disabled={page === totalPages - 1}
-                >
-                  Newer
-                </Button>
-              </Box>
-            )}
+            <EventCard event={event} />
           </Box>
-        )}
+        ))}
       </Box>
+    )}
+  </Box>
+);
 
-      {/* 👇 Modal hiển thị chi tiết sự kiện */}
+
+  return (
+    <Grid size= {{xs:12, md: 4}}>
+
+      {renderEventSection("Sự Kiện Sắp Tới", incomingEvents, "Không có sự kiện sắp tới")}
+      {renderEventSection("Sự Kiện Đã Qua", pastEvents, "Không có sự kiện đã qua")}
+
       {selectedEvent && (
         <EventDetailModal
           event={selectedEvent}
@@ -144,4 +99,4 @@ const EventsPanel: React.FC<Props> = ({
   );
 };
 
-export default EventsPanel;
+export default EventsPanel

@@ -113,10 +113,6 @@ export const DashboardPage = () => {
           <Grid container spacing={3}>
             {/* LEFT COLUMN - Updates */}
             <Grid size= {{xs:12, md: 8}}>
-              <Typography variant="h5" gutterBottom>
-                Latest Updates
-              </Typography>
-
               <Grid container spacing={3}>
                 {/* Featured (big) card */}
                 {featured && (
