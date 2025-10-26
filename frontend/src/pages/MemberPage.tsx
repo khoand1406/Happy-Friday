@@ -1,56 +1,26 @@
-import { Alert, Box, CircularProgress } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { DepartmentOrgChart } from "../components/department/DepartmentOrgChart";
 import MainLayout from "../layout/MainLayout";
-import type { DepartmentResponse } from "../models/response/dep.response";
+import DepartmentOrgChart from "../components/department/DepartmentOrgChart";
+import type { DepartmentRes } from "../models/response/dep.response";
 import { getDepartments } from "../services/department.sertvice";
 
 export const MembersPage: React.FC = () => {
-  const [company, setCompany] = useState<DepartmentResponse[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<DepartmentRes[]>([]);
 
   useEffect(() => {
-    const fetchDepartments = async () => {
+    const fetchDeps = async () => {
       try {
-        const data = await getDepartments();
-        setCompany(data);
-      } catch (err: any) {
-        setError(err.message || "Failed to load departments");
-      } finally {
-        setLoading(false);
+        const result = await getDepartments();
+        setDepartments(result);
+      } catch (error) {
+        console.log(error);
       }
     };
-    fetchDepartments();
+    fetchDeps();
   }, []);
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box m={2}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    );
-  }
-
-  if (!company) {
-    return (
-      <Box m={2}>
-        <Alert severity="info">No departments available</Alert>
-      </Box>
-    );
-  }
-
   return (
     <MainLayout>
-      <DepartmentOrgChart departments={company} />
+      <DepartmentOrgChart departments={departments} />
     </MainLayout>
   );
 };
