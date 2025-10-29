@@ -1,7 +1,7 @@
-export const BaseURl= "http://localhost:3000"
-export const BaseUI= "http://localhost:5173"
-// export const BaseURl= "https://happyfriday-e9fbdygvebf9e6dv.southeastasia-01.azurewebsites.net"
-// export const BaseUI= ""
+// export const BaseURl= "http://localhost:3000"
+// export const BaseUI= "http://localhost:5173"
+export const BaseURl= "https://happyfriday-e9fbdygvebf9e6dv.southeastasia-01.azurewebsites.net"
+export const BaseUI= "https://proud-bay-0acae0c00.2.azurestaticapps.net/"
 export const LOGIN= '/api/auth/login'
 export const OUTLOOK_LOGIN= '/api/auth/supabase'
 
