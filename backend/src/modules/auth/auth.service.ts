@@ -6,11 +6,16 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { supabase, supabaseAdmin } from 'src/config/database.config';
-import { ForgetPasswordDto } from './dto/auth.dto';
+import { ForgetPasswordDto, OauthLoginRequest } from './dto/auth.dto';
+import axios from 'axios';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly JWTService: JwtService) {}
+  constructor(
+    private readonly JWTService: JwtService,
+    private readonly _userService: UserService,
+  ) {}
 
   async validateUser(email: string, password: string) {
     const { error, data } = await supabase.auth.signInWithPassword({
@@ -56,26 +61,71 @@ export class AuthService {
       ...user,
       role_id: profile?.role_id ?? null,
       avatar_url: profile?.avatar_url ?? null,
-      name: profile?.name?? null
+      name: profile?.name ?? null,
     };
   }
 
   async getAuthenticated(user: any) {
-    const payload = { sub: user.id, email: user.email,
-    name: user.name, };
+    const payload = { sub: user.id, email: user.email, name: user.name };
     return {
       access_token: this.JWTService.sign(payload),
       user,
     };
   }
 
-  async sendOTP(model: ForgetPasswordDto){
-    const otp= Math.floor(100000 +Math.random() * 900000).toString();
+    async handleSupabaseReq(user: OauthLoginRequest) {
+    const { id, email, name, avatar_url } = user;
+    console.log(user);
+
+    let userFind = await this._userService.findById(email);
+
+    if (!userFind) {
+      console.log(`Tạo mới user Outlook: ${email}`);
+
+      userFind = await this._userService.create({
+        id,
+        email,
+        name: name || email,
+        avatar_url,
+        phone: '',
+        role_id: 2, // ví dụ role mặc định
+        department_id: 1, // ví dụ phòng mặc định
+      });
+    }
+
+    // ✅ Tạo JWT
+    const payload = {
+      sub: userFind.user_id || userFind.id,
+      email: userFind.email,
+      name: userFind.name,
+    };
+
+    console.log("User____"+ userFind.id);
+
+    const token = this.JWTService.sign(payload, {
+      secret: process.env.JWT_SECRET || 'secret',
+      expiresIn: '7d',
+    });
+
+    return {
+      message: 'Synced user successfully',
+      token,
+      user: {
+        id: userFind.user_id,
+        email: userFind.email,
+        name: userFind.name,
+        avatar_url: userFind.avatar_url,
+      },
+    };
+  }
+
+  async sendOTP(model: ForgetPasswordDto) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     await supabaseAdmin.from('password_reset_otp').insert({
       email: model.confirmEmail,
       otp,
-      expired_at: new Date(Date.now() + 10 * 60 * 1000)
+      expired_at: new Date(Date.now() + 10 * 60 * 1000),
     });
 
     // Email sender is disabled by default to avoid dependency issues.
@@ -84,8 +134,12 @@ export class AuthService {
     return { message: 'OTP generated' };
   }
 
-  async verifyOTP(email: string, otp: string){
-    
+  async verifyOTP(email: string, otp: string) {}
+  
+  async getUserProfile(access_token: string) {
+    const { data } = await axios.get('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+    return data;
   }
-
 }

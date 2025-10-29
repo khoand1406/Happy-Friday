@@ -16,7 +16,7 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
 import { ToastContainer, toast } from 'react-toastify';
 import { createAccount, deleteAccount, disableAccount, enableAccount, listAccounts, resetPassword, updateAccount, type AccountItem, banAccount, importAccounts, scheduleDepartmentTransfer, applyDueTransfers } from "../services/accounts.service";
-import { getDepartments } from "../services/department.sertvice";
+import { getDepartmentList } from "../services/department.sertvice";
 import type { DepartmentResponse } from "../models/response/dep.response";
 import { getProjects, deleteProject, createProject, type ProjectItem } from "../services/project.service";
 import { DashboardStats } from "../components/management/DashboardStats";
@@ -275,7 +275,7 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(()=>{
     const loadDeps = async ()=>{
-      try{ setDepartments(await getDepartments()); } catch{}
+      try{ setDepartments(await getDepartmentList()); } catch{}
     };
     loadDeps();
   }, []);
@@ -612,7 +612,7 @@ const CreateDialog: React.FC<{ open: boolean; onClose: ()=>void; onCreated: ()=>
 
   useEffect(()=>{
     const loadDeps = async ()=>{
-      try{ setDepartments(await getDepartments()); } catch {}
+      try{ setDepartments(await getDepartmentList()); } catch {}
     };
     if (open) loadDeps();
   }, [open]);
@@ -707,7 +707,7 @@ const EditDialog: React.FC<{ item: AccountItem | null; onClose: ()=>void; onUpda
   useEffect(()=>{
     const loadDeps = async ()=>{
       try{
-        const res = await getDepartments();
+        const res = await getDepartmentList();
         setDepartments(res || []);
       }catch{}
     };

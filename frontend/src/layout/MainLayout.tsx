@@ -49,6 +49,7 @@ import { getProjectsByUserId } from "../services/project.service";
 import { acceptEvent, rejectEvent } from "../services/events.service";
 import { useEventContext } from "../context/EventContext";
 import { toast, ToastContainer } from "react-toastify";
+import { supabaseClient } from "../config/SupabaseClient";
 
 const drawerWidth = 240;
 
@@ -91,11 +92,15 @@ export default function MainLayout({
     navigate("/profile");
     handleClose();
   };
-  const handleLogout = () => {
+  const handleLogout = async () => {
+  try {
+    await supabaseClient.auth.signOut();
     localStorage.clear();
     navigate("/login");
-    handleClose();
-  };
+  } catch (err) {
+    console.error("❌ Lỗi khi đăng xuất:", err);
+  }
+};
 
   const handleClickNotifications = (event: React.MouseEvent<HTMLElement>) => {
     setanchorNotificationEl(event.currentTarget);

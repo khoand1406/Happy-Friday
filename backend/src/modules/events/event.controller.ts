@@ -35,6 +35,7 @@ export class EventController {
 
   @Get('/incoming')
   async getIncomingEvents(@Req() req) {
+    console.log('🔐 User from JWT:', req.user);
     const userId= req.user.sub;
     const response = await this.eventService.getIncomingEvents(userId);
     return response;
@@ -43,6 +44,7 @@ export class EventController {
   @Get('/past')
   async getPastEvents(@Req() req) {
     const userId= req.user.sub
+    console.log("UserID: "+userId)
     const response = await this.eventService.getPastEvents(userId);
     return response;
   }

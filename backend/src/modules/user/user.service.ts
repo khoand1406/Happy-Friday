@@ -10,15 +10,15 @@ import { UpdateUserProfileDTO } from './dto/profile.dto';
 
 @Injectable()
 export class UserService {
-  async getUsersList(){
-    const {data, error}= await supabaseAdmin.from('users_with_dep').select('user_id, name, department_name, avatar_url');
-    if(error){
-      throw new InternalServerErrorException(error.message)
+  async getUsersList() {
+    const { data, error } = await supabaseAdmin
+      .from('users_with_dep')
+      .select('user_id, name, department_name, avatar_url');
+    if (error) {
+      throw new InternalServerErrorException(error.message);
     }
     return data;
-
   }
-
 
   async getProfilesFull(page = 1, perPage = 10) {
     const from = (page - 1) * perPage;
@@ -77,6 +77,45 @@ export class UserService {
         'Internal Server Error ' + error.message,
       );
     return data;
+  }
+
+  async create(payload: any) {
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .insert([
+      {
+        id: payload.id,
+        name: payload.name ?? null,
+        phone: payload.phone ?? '09',
+        role_id: payload.role_id ?? 2,
+        department_id: payload.department_id ?? 5,
+        avatar_url: payload.avatar_url ?? "",
+      },
+    ])
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new InternalServerErrorException(
+      'Internal Server Exception: ' + error.message,
+    );
+  }
+
+  return data;
+}
+
+  async findById(email: string) {
+    const { data, error } = await supabaseAdmin
+      .from('users_with_dep')
+      .select('*')
+      .eq('email', email)
+      .single();
+    if (error && error.code !== 'PGRST116') {
+    throw new InternalServerErrorException('Internal Server Error ' + error.message);
+  }
+
+  // Không tìm thấy user => trả về null
+  return data ?? null;
   }
 
   async changePassword(model: ChangePasswordDto) {

@@ -19,3 +19,19 @@ export const authenticated = async (
     throw new Error("Error: "+ error)
   }
 };
+
+export const getAzureProfile= async(accessToken: string)=>{
+  const res = await fetch("https://graph.microsoft.com/v1.0/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const profile = await res.json();
+
+  // Lấy ảnh đại diện (cần gọi endpoint khác)
+  const photoRes = await fetch("https://graph.microsoft.com/v1.0/me/photo/$value", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const blob = await photoRes.blob();
+  const avatarUrl = URL.createObjectURL(blob);
+
+  return { name: profile.displayName, email: profile.mail, avatarUrl };
+}

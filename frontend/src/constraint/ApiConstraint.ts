@@ -1,6 +1,9 @@
 export const BaseURl= "http://localhost:3000"
+export const BaseUI= "http://localhost:5173"
 // export const BaseURl= "https://happyfriday-e9fbdygvebf9e6dv.southeastasia-01.azurewebsites.net"
+// export const BaseUI= ""
 export const LOGIN= '/api/auth/login'
+export const OUTLOOK_LOGIN= '/api/auth/supabase'
 
 export const MEMBERS= '/api/users/list'
 export const USER_PROFILE= '/api/users/me'
@@ -9,6 +12,7 @@ export const CHANGE_PASSWORD= '/api/users/change-password'
 export const MEMBER_LIST= (depId: number)=> `/api/users/member-list/${depId}`
 export const MEMBER_PROFILE= (userId: string)=> `/api/users/member/${userId}`
 export const DEPARTMENT_LIST= '/api/departments'
+export const LIST_DEP= '/api/departments/list'
 export const DEPARTMENT_DETAIL= (id: number)=> `/api/departments/${id}`
 // Accounts (admin)
 export const ACCOUNTS= '/api/accounts'

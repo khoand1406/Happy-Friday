@@ -1,4 +1,4 @@
-import { isEmail, IsEmail, isNotEmpty, IsNotEmpty, MinLength } from "class-validator"
+import { isEmail, IsEmail, isNotEmpty, IsNotEmpty, IsOptional, IsString, IsUUID, MinLength } from "class-validator"
 
 export class LoginRequestDto {
 
@@ -12,6 +12,22 @@ export class LoginRequestDto {
 }
 
 
+
+export class OauthLoginRequest {
+  @IsUUID()
+  id: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @IsOptional()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  avatar_url: string | null;
+}
 
 export class ForgetPasswordDto{
     @IsNotEmpty()
