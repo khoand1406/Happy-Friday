@@ -13,6 +13,7 @@ import ProjectDetail from './pages/ProjectDetail'
 import AdminProjectDetail from './pages/AdminProjectDetail'
 import SearchResultPage from './pages/SearchResultPage'
 import { ProfileUserPage } from './pages/MemberProfile'
+import AuthCallback from './pages/AuthCallback'
 
 const App: React.FC = () => {
   return (
@@ -20,6 +21,7 @@ const App: React.FC = () => {
       <Routes>
         <Route element= {<LoginPage />} path='/'></Route>
         <Route element= {<LoginPage />} path='/login'></Route>
+        <Route element= {<AuthCallback /> } path='/auth/callback'></Route>
         <Route element= {<DashboardPage />} path='/dashboard'></Route>
         <Route element= {<MembersPage></MembersPage>} path='/members'></Route>
         <Route element= {<DepartmentDetail></DepartmentDetail>} path='/departments/:id'></Route>

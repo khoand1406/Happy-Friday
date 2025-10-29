@@ -6,6 +6,7 @@ import {
   Button,
   Checkbox,
   Container,
+  Divider,
   FormControlLabel,
   InputAdornment,
   Link,
@@ -20,6 +21,8 @@ import { ToastContainer } from "react-toastify";
 import { ACCESS_TOKEN, AVATAR_URL, ROLE_ID } from "../constraint/LocalStorage";
 import { useUser } from "../context/UserContext";
 import { authenticated } from "../services/auth.service";
+import { supabaseClient } from "../config/SupabaseClient";
+import { BaseUI } from "../constraint/ApiConstraint";
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -91,6 +94,16 @@ export const LoginPage: React.FC = () => {
       setPasswordError("Login failed. Please try again.");
     }
   };
+
+  const handleOutlookLogin= async()=> {
+    const {error}= await supabaseClient.auth.signInWithOAuth({
+      provider: "azure",
+      options: {
+        redirectTo: `${BaseUI}/auth/callback`
+      }
+    })
+    if (error) console.error("Login error:", error.message);
+  }
 
   return (
     <motion.div
@@ -241,6 +254,25 @@ export const LoginPage: React.FC = () => {
               }}
             >
               Sign In
+            </Button>
+            <Divider></Divider>
+            
+            <Button
+              fullWidth
+              variant="contained"
+              
+              sx={{
+                mt: 1,
+                bgcolor: "#0B0F19",
+                color: "#fff",
+                textTransform: "none",
+                fontWeight: "bold",
+                py: 1.2,
+                "&:hover": { bgcolor: "#1a1f2d" },
+              }}
+              onClick={handleOutlookLogin}
+            >
+              Login with Outlook
             </Button>
           </Box>
 
