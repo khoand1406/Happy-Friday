@@ -14,29 +14,38 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+
     steps:
+      # 1️⃣ Checkout code
       - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
 
-      # 1️⃣ Cài Node
+      # 2️⃣ Setup Node
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # 2️⃣ Cài dependency và build trước
+      # 3️⃣ Clear Vite cache (tránh build từ cache cũ)
+      - name: Clear Vite cache
+        run: |
+          cd frontend
+          rm -rf node_modules/.vite
+
+      # 4️⃣ Build frontend với env từ GitHub Secrets
       - name: Install and Build Frontend
         run: |
           cd frontend
+          echo "🔍 SUPABASE_URL: $VITE_SUPABASE_URL"
+          echo "🔍 SUPABASE_KEY: ${#VITE_SUPABASE_ANON_KEY} chars"
           npm ci
           npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        
 
-      # 3️⃣ Deploy chỉ thư mục dist (đã build)
+      # 5️⃣ Deploy lên Azure Static Web Apps
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
@@ -46,6 +55,7 @@ jobs:
           app_location: "./frontend"
           output_location: "dist"
 
+  # 6️⃣ Đóng pull request job (chuẩn theo template)
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
