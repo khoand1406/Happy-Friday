@@ -5,3 +5,6 @@ export const supabaseClient= createClient(
 );
 
 console.log("👉 URL:", import.meta.env.VITE_SUPABASE_URL);
+console.log("👉 URL:", import.meta.env.VITE_SUPABASE_URL);
+console.log("👉 URL:", import.meta.env.VITE_SUPABASE_URL);
+console.log("👉 URL:", import.meta.env.VITE_SUPABASE_URL);
