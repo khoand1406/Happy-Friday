@@ -16,46 +16,23 @@ jobs:
     name: Build and Deploy Job
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout source code
       - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
 
-      # 2️⃣ Setup Node
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      # 3️⃣ Clear Vite cache (tránh build từ cache cũ)
-      - name: Clear Vite cache
-        run: |
-          cd frontend
-          rm -rf node_modules/.vite
-
-      # 4️⃣ Build frontend với env từ GitHub Secrets
-      - name: Install and Build Frontend
-        run: |
-          cd frontend
-          echo "🔍 SUPABASE_URL: $VITE_SUPABASE_URL"
-          echo "🔍 SUPABASE_KEY: ${#VITE_SUPABASE_ANON_KEY} chars"
-          npm ci
-          npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
-      # 5️⃣ Deploy lên Azure Static Web Apps
+      # 2️⃣ Deploy to Azure (Azure tự detect framework & build)
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROUD_BAY_0ACAE0C00 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "./frontend"
-          output_location: "dist"
+          app_location: "frontend"       # 🟢 thư mục chứa package.json
+          output_location: "dist"        # 🟢 thư mục build của Vite
 
-  # 6️⃣ Đóng pull request job (chuẩn theo template)
+  # 3️⃣ Đóng pull request (Azure yêu cầu có bước này)
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
@@ -66,4 +43,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROUD_BAY_0ACAE0C00 }}
           action: "close"
-          app_location: "./frontend"
+          app_location: "frontend"
