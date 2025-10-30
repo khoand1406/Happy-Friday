@@ -6,6 +6,7 @@ export interface DepartmentResponse {
     name: string;
     phone: string;
     email: string;
+    jobTitle: string|null
     avatar_url: string;
   };
   members: MemberInfo[];
@@ -16,5 +17,6 @@ interface MemberInfo {
   name: string;
   phone: string;
   email: string;
+  jobTitle: string|null
   avatar_url: string;
 }

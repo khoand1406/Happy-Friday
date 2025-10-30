@@ -22,21 +22,27 @@ export function formatDateLocal(dateInput: string | Date) {
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
 
   const pad = (n: number) => (n < 10 ? "0" + n : n);
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1);
   const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  const year = date.getFullYear();
   const hours = pad(date.getHours());
   const minutes = pad(date.getMinutes());
 
-  // Trả về đúng định dạng "yyyy-MM-ddTHH:mm" mà KHÔNG đổi timezone
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  const weekdayNames = [
+    "Sunday", "Mon", "Tue", "Wed",
+    "Thursday", "Fri", "Sat"
+  ];
+  const weekday = weekdayNames[date.getDay()];
+
+  return `${weekday}, ${day}/${month}/${year} at ${hours}:${minutes}`;
 }
+
 
 export function formatDateHanoi(dateInput: string | Date) {
   if (!dateInput) return "";
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
 
-  // Cộng thêm 7 tiếng để chuyển từ UTC sang giờ Hà Nội
+
   const hanoiDate = new Date(date.getTime() - 7 * 60 * 60 * 1000);
 
   const pad = (n: number) => (n < 10 ? "0" + n : n);

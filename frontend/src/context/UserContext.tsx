@@ -13,9 +13,10 @@ type DecodedToken = {
 type User = {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
   avatar_url?: string;
   email?: string
+  jobTitle?: string
   department_name?: string
   projects?: { project_id: number; project_name: string; description: string, status: string, project_role: string }[]
 };

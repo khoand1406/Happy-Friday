@@ -25,6 +25,7 @@ interface UserBasicInfo {
   department_name: string
   role_dep: string
   avatar_url: string;
+  jobTitle: string|null
 }
 
 export interface Invite {
@@ -36,6 +37,7 @@ export interface Invite {
   role_dep: string
   status: boolean;
   joined_at: Date | null;
+  jobTitle: string|null;
 }
 
 export interface CreateEventResponse{

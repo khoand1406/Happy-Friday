@@ -8,6 +8,7 @@ export interface UserProfileProps {
   phone: string;
   department_name: string | undefined;
   avatar_url: string ;
+  jobTitle: string|null
   projects: { project_id: number; project_name: string; description: string, status: string, project_role: string }[] | undefined;
   updateSubmit: (formData: FormData)=> Promise<UserUpdateResponse>
   changePassword: (model: ChangePasswordRequest)=> Promise<ChangePasswordResponse>

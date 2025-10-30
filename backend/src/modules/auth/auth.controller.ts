@@ -22,7 +22,6 @@ export class AuthController {
 
   @Post('supabase')
   async supabaseLogin(@Body() user: OauthLoginRequest){
-    console.log('aaaaaaa'+ user.id + user.name)
     return this.authService.handleSupabaseReq(user);
   }
 }

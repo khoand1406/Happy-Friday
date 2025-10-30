@@ -99,8 +99,10 @@ export const LoginPage: React.FC = () => {
     const {error}= await supabaseClient.auth.signInWithOAuth({
       provider: "azure",
       options: {
-        redirectTo: `${BaseUI}/auth/callback`
-      }
+        redirectTo: `${BaseUI}/auth/callback`,
+        scopes: "openid profile email offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.ReadBasic.All"
+      },
+
     })
     if (error) console.error("Login error:", error.message);
   }

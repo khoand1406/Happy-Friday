@@ -13,7 +13,7 @@ export class UserService {
   async getUsersList() {
     const { data, error } = await supabaseAdmin
       .from('users_with_dep')
-      .select('user_id, name, department_name, avatar_url');
+      .select('user_id, name, department_name,jobTitle, avatar_url');
     if (error) {
       throw new InternalServerErrorException(error.message);
     }
@@ -90,6 +90,7 @@ export class UserService {
         role_id: payload.role_id ?? 2,
         department_id: payload.department_id ?? 5,
         avatar_url: payload.avatar_url ?? "",
+        jobTitle:payload.jobTitle?? ""
       },
     ])
     .select('*')

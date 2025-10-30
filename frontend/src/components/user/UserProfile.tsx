@@ -32,6 +32,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
   email,
   phone,
   department_name,
+  jobTitle,
   avatar_url,
   projects,
   updateSubmit,
@@ -190,7 +191,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
                     mt: 0.5,
                   }}
                 >
-                  {department_name}
+                  {jobTitle ? jobTitle: department_name}
                 </Typography>
               </Box>
             </Box>

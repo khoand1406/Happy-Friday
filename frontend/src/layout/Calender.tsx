@@ -22,12 +22,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useRef } from "react";
-
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+
+import { useRef } from "react";
+
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -54,7 +53,7 @@ import { getMembers } from "../services/user.service";
 import { formatDate, formatDateLocal, toHanoiTime } from "../utils/DateFormat";
 import MainLayout from "./MainLayout";
 import UserDetailModal from "../components/user/UserDetailModal";
-
+import dayjs from "dayjs";
 export default function CalendarLayout() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [openModal, setOpenModal] = useState(false);
@@ -70,11 +69,15 @@ export default function CalendarLayout() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [users, setUsers] = useState<UserBasicRespone[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserBasicRespone[]>([]);
+  const [showConfirmed, setShowConfirmed] = useState(false);
+  const [showPending, setShowPending] = useState(false);
+
+  const [selectedUserDetail, setSelectedUserDetail] =
+    useState<UserBasicRespone | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
-  const [openUserModal, setOpen]= useState(false);
+  const [openUserModal, setOpenUserModal] = useState(false);
   const { user } = useUser();
-  const [expanded, setExpanded] = useState(false);
   const currentInvite = eventDetail?.attendees?.find(
     (a) => a.user_id === user?.id
   );
@@ -142,20 +145,20 @@ export default function CalendarLayout() {
     }
   };
 
-  const handleDateClick= (info: any)=> {
-    const start= new Date(info.date);
-    const end= new Date(start.getTime()+ 60*60*1000);
-    const formatInput= (d:Date)=>  d.toISOString().slice(0, 16);
+  const handleDateClick = (info: any) => {
+    const start = new Date(info.date);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const formatInput = (d: any) => dayjs(d).format("YYYY-MM-DDTHH:mm");
 
     setNewEvent({
       title: "",
       content: "",
       start: formatInput(start),
-      end: formatInput(end)
-    })
+      end: formatInput(end),
+    });
     setOpenModal(true);
     setSelectedDate(info.date);
-  }
+  };
 
   const fetchEvents = useCallback(
     async (fetchInfo: any, successCallback: any, failureCallback: any) => {
@@ -284,7 +287,12 @@ export default function CalendarLayout() {
             <Button
               variant="contained"
               color="primary"
-              onClick={() => setOpenModal(true)}
+              onClick={() => {
+                setNewEvent({ title: "", content: "", start: "", end: "" });
+                setSelectedUser([]);
+                setSelectedDate(null);
+                setOpenModal(true);
+              }}
             >
               + Create Event
             </Button>
@@ -323,7 +331,10 @@ export default function CalendarLayout() {
         {/* CREATE EVENT MODAL */}
         <Dialog
           open={openModal}
-          onClose={() => setOpenModal(false)}
+          onClose={() => {
+            setOpenModal(false);
+            setSelectedDate(null);
+          }}
           maxWidth="sm"
           fullWidth
         >
@@ -442,272 +453,342 @@ export default function CalendarLayout() {
           sx={{
             "& .MuiDialog-paper": {
               maxHeight: "90vh",
-              minHeight: "70vh",
+              minHeight: "50vh",
             },
           }}
         >
+          {eventDetail && (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                px: 2,
+                py: 1.5,
+                borderBottom: "1px solid #eee",
+                backgroundColor: "#fafafa",
+                borderRadius: "8px 8px 0 0",
+              }}
+            >
+              {/* Bên trái: Action buttons hoặc Confirm status */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                {eventDetail.creator.id === user?.id ? (
+                  <>
+                    <IconButton
+                      color="primary"
+                      onClick={() => {
+                        setNewEvent({
+                          title: eventDetail.title,
+                          content: eventDetail.content,
+                          start: formatDate(eventDetail.startDate),
+                          end: formatDate(eventDetail.endDate),
+                        });
+                        setSelectedUser(
+                          eventDetail.attendees
+                            ?.filter(
+                              (u) => u.user_id !== eventDetail.creator.id
+                            )
+                            .map((u) => ({
+                              user_id: u.user_id,
+                              name: u.name,
+                              avatar_url: u.avatar_url,
+                              department_name: u.name,
+                              email: u.email,
+                              jobTitle: u.jobTitle,
+                              role_dep: u.role_dep,
+                            })) ?? []
+                        );
+                        setEditingEventId(eventDetail.id);
+                        setEditMode(true);
+                        setOpenModal(true);
+                        setDetailDialogOpen(false);
+                      }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+
+                    <IconButton
+                      color="error"
+                      onClick={async () => {
+                        if (
+                          confirm("Are you sure you want to delete this event?")
+                        ) {
+                          try {
+                            await deleteEvent(eventDetail.id);
+                            toast.success("Event deleted successfully!");
+                            setDetailDialogOpen(false);
+                          } catch (error) {
+                            toast.error("Failed to delete event!");
+                            console.error(error);
+                          }
+                        }
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </>
+                ) : (
+                  <>
+                    {!hasAccepted ? (
+                      <>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          size="small"
+                          onClick={() => handleAcceptInvite(eventDetail.id)}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() => handleDeclineInvite(eventDetail.id)}
+                        >
+                          Decline
+                        </Button>
+                      </>
+                    ) : (
+                      <Typography color="text.secondary" fontWeight="medium">
+                        ✅ Accepted
+                      </Typography>
+                    )}
+                  </>
+                )}
+              </Box>
+
+              {/* Bên phải: Close button */}
+              <Button variant="text" onClick={() => setDetailDialogOpen(false)}>
+                Close
+              </Button>
+            </Box>
+          )}
           <DialogContent>
             {eventDetail ? (
-              <Box
-                sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
-              >
-                {/* Title */}
-                <Typography variant="h6" fontWeight="bold">
-                  {eventDetail.title}
-                </Typography>
-
-                <Divider />
-
-                {/* Content */}
-                <Typography whiteSpace="pre-line">
-                  {eventDetail.content}
-                </Typography>
-
-                <Divider />
-
-                {/* Time */}
-                <Typography color="text.secondary">
-                  🕒 {formatDateLocal(eventDetail.startDate).replace("T", " ")}{" "}
-                  → {formatDateLocal(eventDetail.endDate).replace("T", " ")}
-                </Typography>
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  gap={1.5}
-                  p={1.2}
-                  sx={{
-                    backgroundColor: "#f9f9f9",
-                    borderRadius: "10px",
-                  }}
-                >
-                  <Avatar
-                    src={
-                      eventDetail.creator.avatar_url ||
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        eventDetail.creator.name
-                      )}&background=random`
-                    }
-                    alt={eventDetail.creator.name}
-                    sx={{ width: 40, height: 40 }}
-                  />
-                  <Typography variant="body1">
-                    <b>{eventDetail.creator.name}</b> has invited you.
-                  </Typography>
-                </Box>
-                <Box display="flex" justifyContent="center">
-                  <Button
-                    variant="text"
-                    size="small"
-                    startIcon={
-                      expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
-                    }
-                    onClick={() => setExpanded((prev) => !prev)}
+              <Grid container spacing={2}>
+                {/* Cột trái - Nội dung chi tiết sự kiện */}
+                <Grid size= {{xs:12, md:9}}>
+                  <Box
+                    sx={{
+                      border: "1px solid #e0e0e0",
+                      borderRadius: 2,
+                      p: 3,
+                      backgroundColor: "#fff",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                      height: "100%"
+                    }}
                   >
-                    {expanded ? "View Less" : "Expand"}
-                  </Button>
-                </Box>
-
-                <Collapse in={expanded} timeout="auto" unmountOnExit>
-                  <Box sx={{ mt: 2 }}>
-                    {/* Confirmed */}
-                    <Typography
-                      variant="subtitle1"
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        fontWeight: "bold",
-                      }}
-                    >
-                      <CheckCircleIcon color="success" fontSize="small" />
-                      Confirmed ({confirmed.length})
+                    {/* Tiêu đề */}
+                    <Typography variant="h5" fontWeight="bold">
+                      🔥 {eventDetail.title}
                     </Typography>
 
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                      {confirmed.length > 0 ? (
-                        confirmed.map((user) => (
-                          <Grid
-                            size={{ xs: 12, sm: 6, md: 4 }}
-                            key={user.user_id}
-                            display="flex"
-                            alignItems="center"
-                            gap={1}
-                          >
-                            <Avatar
-                              src={
-                                user.avatar_url ||
-                                `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                  user.name
-                                )}&background=random`
-                              }
-                              
-                              sx={{ width: 32, height: 32 }}
-                              onClick={() => setOpen(true)}
-                            />
-                            <Typography variant="body2">{user.name}</Typography>
-                            <UserDetailModal open= {openUserModal} onClose={()=> setOpen(false)} userData={{ name: user.name, email: user.email, avatarUrl: user.avatar_url, phone: "", role: `${user.role_dep} of ${user.department_name}`}}></UserDetailModal>
-                          </Grid>
-                        ))
-                      ) : (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ ml: 4 }}
-                        >
-                          No confirmed attendees
-                        </Typography>
-                      )}
-                    </Grid>
-
-                    {/* Unconfirmed */}
-                    <Typography
-                      variant="subtitle1"
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mt: 3,
-                        fontWeight: "bold",
-                      }}
-                    >
-                      <HourglassEmptyIcon color="warning" fontSize="small" />
-                      Unconfirmed ({pending.length})
+                    {/* Thời gian */}
+                    <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+                      🕒 {formatDateLocal(eventDetail.startDate)} →{" "}
+                      {formatDateLocal(eventDetail.endDate)}
                     </Typography>
 
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                      {pending.length > 0 ? (
-                        pending.map((user) => (
-                          <Grid
-                            size={{ xs: 12, sm: 6, md: 4 }}
-                            key={user.user_id}
-                            display="flex"
-                            alignItems="center"
-                            gap={1}
-                          >
-                            <Avatar
-                              src={
-                                user.avatar_url ||
-                                `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                  user.name
-                                )}&background=random`
-                              }
-                              
-                              sx={{ width: 32, height: 32 }}
-                              onClick={() => setOpen(true)}
-                            />
-                            <Typography variant="body2">{user.name}</Typography>
-                            <UserDetailModal open= {openUserModal} onClose={()=> setOpen(false)} userData={{name: user.name, email: user.email, avatarUrl: user.avatar_url, phone: "", role: `${user.role_dep} of ${user.department_name}`}}></UserDetailModal>
-                          </Grid>
-                        ))
-                      ) : (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ ml: 4 }}
-                        >
-                          No pending attendees
-                        </Typography>
-                      )}
-                    </Grid>
+                    <Divider />
+
+                    {/* Nội dung */}
+                    <Typography
+                      whiteSpace="pre-line"
+                      sx={{
+                        lineHeight: 1.6,
+                        fontSize: 15,
+                        color: "#333",
+                      }}
+                    >
+                      {eventDetail.content || "No Content."}
+                    </Typography>
                   </Box>
-                </Collapse>
-              </Box>
+                </Grid>
+
+                {/* Cột phải - Người tham gia */}
+                <Grid size= {{xs: 12, md:3}}>
+                  <Box
+                    sx={{
+                      border: "1px solid #e0e0e0",
+                      borderRadius: 2,
+                      p: 2,
+                      backgroundColor: "#fff",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    {/* Người tổ chức */}
+                    <Box>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        sx={{ mb: 1, color: "#333" }}
+                      >
+                        Creator
+                      </Typography>
+                      <Box display="flex" alignItems="center" gap={1.5}>
+                        <Avatar
+                          src={
+                            eventDetail.creator.avatar_url ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              eventDetail.creator.name
+                            )}&background=random`
+                          }
+                          sx={{ width: 36, height: 36 }}
+                        />
+                        <Box>
+                          <Typography fontWeight="500" fontSize={14}>
+                            {eventDetail.creator.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Sent at {" "}
+                            {formatDateLocal(eventDetail.startDate).replace(
+                              "T",
+                              " "
+                            )}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    <Divider />
+
+                    {/* Người đã chấp nhận */}
+                    <Box>
+                      <Button
+                        variant="text"
+                        size="small"
+                        startIcon={
+                          showConfirmed ? (
+                            <ExpandLessIcon />
+                          ) : (
+                            <ExpandMoreIcon />
+                          )
+                        }
+                        onClick={() => setShowConfirmed((prev) => !prev)}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: "bold",
+                          justifyContent: "flex-start",
+                          width: "100%",
+                        }}
+                      >
+                        Confirmed ({confirmed.length})
+                      </Button>
+
+                      <Collapse in={showConfirmed} timeout="auto" unmountOnExit>
+                        <Grid container spacing={1} sx={{ mt: 1 }}>
+                          {confirmed.map((user) => (
+                            <Grid size= {{xs: 12}} key={user.user_id}>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <Avatar
+                                  src={
+                                    user.avatar_url ||
+                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                      user.name
+                                    )}&background=random`
+                                  }
+                                  sx={{
+                                    width: 30,
+                                    height: 30,
+                                    cursor: "pointer",
+                                  }}
+                                  onClick={() => {
+                                    setSelectedUserDetail(user);
+                                    setOpenUserModal(true);
+                                  }}
+                                />
+                                <Typography variant="body2">
+                                  {user.name}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Collapse>
+                    </Box>
+
+                    {/* Người chưa phản hồi */}
+                    <Box>
+                      <Button
+                        variant="text"
+                        size="small"
+                        startIcon={
+                          showPending ? <ExpandLessIcon /> : <ExpandMoreIcon />
+                        }
+                        onClick={() => setShowPending((prev) => !prev)}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: "bold",
+                          justifyContent: "flex-start",
+                          width: "100%",
+                        }}
+                      >
+                        Pending ({pending.length})
+                      </Button>
+
+                      <Collapse in={showPending} timeout="auto" unmountOnExit>
+                        <Grid container spacing={1} sx={{ mt: 1 }}>
+                          {pending.map((user) => (
+                            <Grid size= {{xs: 12}} key={user.user_id}>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <Avatar
+                                  src={
+                                    user.avatar_url ||
+                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                      user.name
+                                    )}&background=random`
+                                  }
+                                  sx={{
+                                    width: 30,
+                                    height: 30,
+                                    cursor: "pointer",
+                                  }}
+                                  onClick={() => {
+                                    setSelectedUserDetail(user);
+                                    setOpenUserModal(true);
+                                  }}
+                                />
+                                <Typography variant="body2">
+                                  {user.name}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Collapse>
+                    </Box>
+                  </Box>
+                </Grid>
+
+                {/* Modal chi tiết người dùng */}
+                {selectedUserDetail && (
+                  <UserDetailModal
+                    open={openUserModal}
+                    onClose={() => setOpenUserModal(false)}
+                    userData={{
+                      id: selectedUserDetail.user_id,
+                      name: selectedUserDetail.name,
+                      email: selectedUserDetail.email,
+                      avatarUrl: selectedUserDetail.avatar_url,
+                      phone: "",
+                      role: `${selectedUserDetail.role_dep} of ${selectedUserDetail.department_name}`,
+                      jobTitle: selectedUserDetail.jobTitle ?? "",
+                    }}
+                  />
+                )}
+              </Grid>
             ) : (
               <Box display="flex" justifyContent="center" p={2}>
                 <CircularProgress size={30} />
               </Box>
             )}
           </DialogContent>
-
-          {eventDetail && (
-            <DialogActions
-              sx={{
-                justifyContent: "space-between",
-                px: 3,
-                py: 2,
-                borderTop: "1px solid #eee",
-              }}
-            >
-              {/* Nếu là người tạo sự kiện */}
-              {eventDetail.creator.id === user?.id ? (
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <IconButton
-                    color="primary"
-                    onClick={() => {
-                      setNewEvent({
-                        title: eventDetail.title,
-                        content: eventDetail.content,
-                        start: formatDate(eventDetail.startDate),
-                        end: formatDate(eventDetail.endDate),
-                      });
-                      setSelectedUser(
-                        eventDetail.attendees?.map((u) => ({
-                          user_id: u.user_id,
-                          name: u.name,
-                          avatar_url: u.avatar_url,
-                          department_name: u.name,
-                        })) ?? []
-                      );
-                      setEditingEventId(eventDetail.id);
-                      setEditMode(true);
-                      setOpenModal(true);
-                      setDetailDialogOpen(false);
-                    }}
-                  >
-                    <EditIcon />
-                  </IconButton>
-
-                  <IconButton
-                    color="error"
-                    onClick={async () => {
-                      if (
-                        confirm("Are you sure you want to delete this event?")
-                      ) {
-                        try {
-                          await deleteEvent(eventDetail.id);
-                          toast.success("Event deleted successfully!");
-                          setDetailDialogOpen(false);
-                        } catch (error) {
-                          toast.error("Failed to delete event!");
-                          console.error(error);
-                        }
-                      }
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              ) : (
-                <>
-                  {!hasAccepted ? (
-                    <>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        onClick={() => handleAcceptInvite(eventDetail.id)}
-                      >
-                        Accept
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => handleDeclineInvite(eventDetail.id)}
-                      >
-                        Decline
-                      </Button>
-                    </>
-                  ) : (
-                    <Typography color="text.secondary" sx={{ mr: 2 }}>
-                      ✅ Accepted
-                    </Typography>
-                  )}
-                </>
-              )}
-
-              {/* Close button bên phải */}
-              <Button onClick={() => setDetailDialogOpen(false)}>Close</Button>
-            </DialogActions>
-          )}
         </Dialog>
       </Grid>
       <ToastContainer></ToastContainer>

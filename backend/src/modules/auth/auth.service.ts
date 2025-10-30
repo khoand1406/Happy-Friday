@@ -9,6 +9,7 @@ import { supabase, supabaseAdmin } from 'src/config/database.config';
 import { ForgetPasswordDto, OauthLoginRequest } from './dto/auth.dto';
 import axios from 'axios';
 import { UserService } from '../user/user.service';
+import { getDepartmentByName } from 'src/utils/UserUtils';
 
 @Injectable()
 export class AuthService {
@@ -73,23 +74,27 @@ export class AuthService {
     };
   }
 
-    async handleSupabaseReq(user: OauthLoginRequest) {
-    const { id, email, name, avatar_url } = user;
-    console.log(user);
+  async handleSupabaseReq(user: OauthLoginRequest) {
+    const { id, email, name, avatar_url, department, phone } = user;
 
     let userFind = await this._userService.findById(email);
 
     if (!userFind) {
       console.log(`Tạo mới user Outlook: ${email}`);
-
+      const departmentId = getDepartmentByName(department);
+      let isLead = false;
+      if (department?.trim().toLowerCase().includes('head')) {
+        isLead = true;
+      }
       userFind = await this._userService.create({
         id,
         email,
         name: name || email,
         avatar_url,
-        phone: '',
-        role_id: 2, // ví dụ role mặc định
-        department_id: 1, // ví dụ phòng mặc định
+        phone: phone || '',
+        role_id: isLead ? 1 : 2,
+        department_id: departmentId,
+        jobTitle: department,
       });
     }
 
@@ -99,8 +104,6 @@ export class AuthService {
       email: userFind.email,
       name: userFind.name,
     };
-
-    console.log("User____"+ userFind.id);
 
     const token = this.JWTService.sign(payload, {
       secret: process.env.JWT_SECRET || 'secret',
@@ -112,9 +115,11 @@ export class AuthService {
       token,
       user: {
         id: userFind.user_id,
-        email: userFind.email,
+        email: email,
         name: userFind.name,
         avatar_url: userFind.avatar_url,
+        department: userFind.jobTitle,
+        phone: phone,
       },
     };
   }
@@ -135,7 +140,7 @@ export class AuthService {
   }
 
   async verifyOTP(email: string, otp: string) {}
-  
+
   async getUserProfile(access_token: string) {
     const { data } = await axios.get('https://graph.microsoft.com/v1.0/me', {
       headers: { Authorization: `Bearer ${access_token}` },

@@ -15,25 +15,25 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { Business, Email } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { id } from "date-fns/locale";
 
 interface UserDetailModalProps {
   open: boolean;
   onClose: () => void;
   userData: {
-    
+    id: string;
     name: string;
     email: string;
     phone: string;
     role: string;
     avatarUrl: string;
+    jobTitle: string;
   } | null;
 }
 
 const UserDetailModal = ({ open, onClose, userData }: UserDetailModalProps) => {
   if (!userData) return null;
 
-  const { name, email, role, avatarUrl } = userData;
+  const { id, name, email, role, avatarUrl, jobTitle } = userData;
   const navigator= useNavigate();
 
   return (
@@ -72,7 +72,7 @@ const UserDetailModal = ({ open, onClose, userData }: UserDetailModalProps) => {
             {name}
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            {role || "Không có chức vụ"}
+            {jobTitle || role || "Not Availale"}
           </Typography>
         </Box>
 
@@ -88,8 +88,6 @@ const UserDetailModal = ({ open, onClose, userData }: UserDetailModalProps) => {
               <strong>Email:</strong> {email || "Chưa có email"}
             </Typography>
           </Box>
-
-        
 
           <Box display="flex" alignItems="center" gap={1}>
             <Tooltip title="Loại công việc">
