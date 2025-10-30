@@ -1,3 +1,4 @@
+import { Optional } from "@nestjs/common";
 import { isEmail, IsEmail, isNotEmpty, IsNotEmpty, IsOptional, IsString, IsUUID, MinLength } from "class-validator"
 
 export class LoginRequestDto {
@@ -27,6 +28,14 @@ export class OauthLoginRequest {
   @IsOptional()
   @IsString()
   avatar_url: string | null;
+
+  @IsOptional()
+  @IsString()
+  department: string | null
+
+  @IsOptional()
+  @IsString()
+  phone: string | null
 }
 
 export class ForgetPasswordDto{

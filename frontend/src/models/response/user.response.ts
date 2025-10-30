@@ -4,6 +4,7 @@ export interface UserProfileResponse{
     email: string;
     phone: string;
     department_name: string;
+    jobTitle: string;
     avatar_url: string;
     projects: { project_id: number; project_name: string; description: string, status: string, project_role: string }[];
 }
@@ -31,6 +32,9 @@ export interface UserResponse{
 export interface UserBasicRespone{
     user_id: string;
     name: string;
+    email: string
+    role_dep: string|null
+    jobTitle: string|null
     department_name:string;
     avatar_url:string;
 

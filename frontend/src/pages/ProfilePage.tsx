@@ -77,6 +77,8 @@ export const ProfilePage: React.FC = () => {
           department_name={user.department_name?? ""}
           avatar_url={user.avatar_url?? ""}
           projects= {user.projects}
+          phone={user.phone??""}
+          jobTitle={user.jobTitle?? ""}
           updateSubmit={updateSubmit}
           changePassword= {changeUsrPassword}
 

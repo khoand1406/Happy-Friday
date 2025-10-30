@@ -17,6 +17,7 @@ interface OrgNode {
   position: string;
   email?: string;
   imageUrl?: string;
+  jobTitle?: string
 }
 
 const DepartmentOrgChart: React.FC<Props> = ({ departments }) => {
@@ -46,8 +47,9 @@ const DepartmentOrgChart: React.FC<Props> = ({ departments }) => {
             id: dep.leader.user_id,
             parentId: "root",
             name: dep.leader.name,
-            position: dep.department_name + " (Leader)",
+            position: "Head of "+ dep.department_name,
             email: dep.leader.email,
+            jobTitle: dep.leader.jobTitle,
             imageUrl: dep.leader.avatar_url?? `https://ui-avatars.com/api/?name=${encodeURIComponent(dep.leader.name)}&background=random`,
           });
           for (const member of dep.members) {
@@ -55,7 +57,8 @@ const DepartmentOrgChart: React.FC<Props> = ({ departments }) => {
               id: member.user_id,
               parentId: dep.leader.user_id,
               name: member.name,
-              position: "Member",
+              position: dep.department_name,
+              jobTitle: member.jobTitle,
               email: member.email,
               imageUrl: member.avatar_url?? `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=random`,
             });
@@ -90,6 +93,7 @@ const DepartmentOrgChart: React.FC<Props> = ({ departments }) => {
           email: u.email,
           phone: "NOT AVAILABLE",
           role: u.position,
+          jobTitle: u.jobTitle,
           avatarUrl: u.imageUrl,
         });
         setOpenModal(true);

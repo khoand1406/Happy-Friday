@@ -43,6 +43,8 @@ export default function AuthCallback() {
               `https://ui-avatars.com/api/?name=${encodeURIComponent(
                 user.user_metadata?.full_name || formatNameFromEmail(email)
               )}`,
+            department: "",
+            phone:""
           };
 
           if (outlookAccessToken) {
@@ -56,6 +58,8 @@ export default function AuthCallback() {
               const profile = await graphRes.json();
 
               if (profile?.displayName) payload.name = profile.displayName;
+              if(profile?.jobTitle) payload.department= profile.jobTitle;
+              if(profile?.mobilePhone) profile.phone= profile.mobilePhone;
 
               const photoRes = await fetch(
                 "https://graph.microsoft.com/v1.0/me/photo/$value",

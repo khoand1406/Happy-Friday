@@ -18,11 +18,6 @@ export class DepartmentController {
     return response;
   }
   
-  @Get('/:id')
-  async GetDepartment(@Param('id') id: number) {
-    const response = await this.DepartmentService.getDepartmentRes(id);
-    return response;
-  }
 
   
 }

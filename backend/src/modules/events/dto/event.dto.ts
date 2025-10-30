@@ -25,13 +25,15 @@ interface UserBasicInfo {
   department_name: string
   role_dep: string
   avatarUrl: string;
+  jobTitle: string|null;
 }
 
 interface Invite {
   user_id: string;
   name: string;
   avatarUrl: string;
-  email: string
+  email: string;
+  jobTitle: string|null;
   department_name: string
   role_dep: string
   status: boolean;
