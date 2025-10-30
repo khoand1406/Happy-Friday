@@ -4,43 +4,19 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - master
 
 jobs:
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
+    name: Azure Static Web Apps CI/CD
 
     steps:
-      # 1️⃣ Checkout source code
       - uses: actions/checkout@v3
-        with:
-          submodules: true
-          lfs: false
 
-      # 2️⃣ Deploy to Azure (Azure tự detect framework & build)
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROUD_BAY_0ACAE0C00 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "frontend"       # 🟢 thư mục chứa package.json
-          output_location: "dist"        # 🟢 thư mục build của Vite
-
-  # 3️⃣ Đóng pull request (Azure yêu cầu có bước này)
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROUD_BAY_0ACAE0C00 }}
-          action: "close"
-          app_location: "frontend"
+          app_location: "./frontend"
