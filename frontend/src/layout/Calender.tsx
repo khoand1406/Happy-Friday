@@ -63,6 +63,8 @@ export default function CalendarLayout() {
     start: "",
     end: "",
   });
+  const [openReminderModal, setOpenReminderModal] = useState(false);
+  const [selectedReminder, setSelectedReminder] = useState<number | null>(null);
   const [eventDetail, setEventDetail] = useState<EventDetailResponse | null>(
     null
   );
@@ -526,6 +528,14 @@ export default function CalendarLayout() {
                     >
                       <DeleteIcon />
                     </IconButton>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="secondary"
+                      onClick={() => setOpenReminderModal(true)}
+                    >
+                      ⏰ Create Reminder
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -549,9 +559,20 @@ export default function CalendarLayout() {
                         </Button>
                       </>
                     ) : (
-                      <Typography color="text.secondary" fontWeight="medium">
-                        ✅ Accepted
-                      </Typography>
+                      <>
+                        <Typography color="text.secondary" fontWeight="medium">
+                          ✅ Accepted
+                        </Typography>
+
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="secondary"
+                          onClick={() => setOpenReminderModal(true)}
+                        >
+                          ⏰ Create Reminder
+                        </Button>
+                      </>
                     )}
                   </>
                 )}
@@ -567,7 +588,7 @@ export default function CalendarLayout() {
             {eventDetail ? (
               <Grid container spacing={2}>
                 {/* Cột trái - Nội dung chi tiết sự kiện */}
-                <Grid size= {{xs:12, md:9}}>
+                <Grid size={{ xs: 12, md: 9 }}>
                   <Box
                     sx={{
                       border: "1px solid #e0e0e0",
@@ -578,7 +599,7 @@ export default function CalendarLayout() {
                       flexDirection: "column",
                       gap: 2,
                       boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                      height: "100%"
+                      height: "100%",
                     }}
                   >
                     {/* Tiêu đề */}
@@ -609,7 +630,7 @@ export default function CalendarLayout() {
                 </Grid>
 
                 {/* Cột phải - Người tham gia */}
-                <Grid size= {{xs: 12, md:3}}>
+                <Grid size={{ xs: 12, md: 3 }}>
                   <Box
                     sx={{
                       border: "1px solid #e0e0e0",
@@ -646,7 +667,7 @@ export default function CalendarLayout() {
                             {eventDetail.creator.name}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Sent at {" "}
+                            Sent at{" "}
                             {formatDateLocal(eventDetail.startDate).replace(
                               "T",
                               " "
@@ -684,7 +705,7 @@ export default function CalendarLayout() {
                       <Collapse in={showConfirmed} timeout="auto" unmountOnExit>
                         <Grid container spacing={1} sx={{ mt: 1 }}>
                           {confirmed.map((user) => (
-                            <Grid size= {{xs: 12}} key={user.user_id}>
+                            <Grid size={{ xs: 12 }} key={user.user_id}>
                               <Box display="flex" alignItems="center" gap={1}>
                                 <Avatar
                                   src={
@@ -735,7 +756,7 @@ export default function CalendarLayout() {
                       <Collapse in={showPending} timeout="auto" unmountOnExit>
                         <Grid container spacing={1} sx={{ mt: 1 }}>
                           {pending.map((user) => (
-                            <Grid size= {{xs: 12}} key={user.user_id}>
+                            <Grid size={{ xs: 12 }} key={user.user_id}>
                               <Box display="flex" alignItems="center" gap={1}>
                                 <Avatar
                                   src={
@@ -789,6 +810,52 @@ export default function CalendarLayout() {
               </Box>
             )}
           </DialogContent>
+        </Dialog>
+        <Dialog
+          open={openReminderModal}
+          onClose={() => setOpenReminderModal(false)}
+          fullWidth
+          maxWidth="xs"
+        >
+          <DialogTitle>⏰ Create Reminder</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Chọn thời gian bạn muốn được nhắc trước khi sự kiện bắt đầu:
+            </Typography>
+
+            <Box display="flex" flexDirection="column" gap={1}>
+              {[10, 30, 60, 120].map((m) => (
+                <Button
+                  key={m}
+                  variant={selectedReminder === m ? "contained" : "outlined"}
+                  onClick={() => setSelectedReminder(m)}
+                >
+                  {m >= 60 ? `${m / 60} giờ trước` : `${m} phút trước`}
+                </Button>
+              ))}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenReminderModal(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                if (selectedReminder !== null) {
+                  toast.success(
+                    `Reminder set ${
+                      selectedReminder >= 60
+                        ? `${selectedReminder / 60} hours`
+                        : `${selectedReminder} minutes`
+                    } before event`
+                  );
+                  setOpenReminderModal(false);
+                }
+              }}
+              disabled={!selectedReminder}
+            >
+              Save
+            </Button>
+          </DialogActions>
         </Dialog>
       </Grid>
       <ToastContainer></ToastContainer>
