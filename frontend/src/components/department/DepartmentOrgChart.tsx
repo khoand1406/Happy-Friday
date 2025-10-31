@@ -89,6 +89,7 @@ const DepartmentOrgChart: React.FC<Props> = ({ departments }) => {
         
         const u = d.data as OrgNode;
         setSelectedUser({
+          id: u.id,
           name: u.name,
           email: u.email,
           phone: "NOT AVAILABLE",

@@ -10,13 +10,13 @@ import {
 import { useEffect, useState } from "react";
 import { getEventDetail } from "../../services/events.service";
 import type {
-  EventResponse,
   EventDetailResponse,
+  EventResponseIPast,
 } from "../../models/response/event.response";
 import { formatDateParts } from "../../utils/DateFormat";
 
 interface Props {
-  event: EventResponse;
+  event: EventResponseIPast;
   isOpen: boolean;
   onClose: () => void;
 }

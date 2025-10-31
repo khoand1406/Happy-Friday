@@ -9,11 +9,11 @@ import EventBusyIcon from "@mui/icons-material/EventBusy";
 
 import EventCard from "./EventCard";
 import EventDetailModal from "./EventDetailModal";
-import type { EventResponse } from "../../models/response/event.response";
+import type { EventResponseIPast } from "../../models/response/event.response";
 
 interface Props {
-  incomingEvents: EventResponse[];
-  pastEvents: EventResponse[];
+  incomingEvents: EventResponseIPast[];
+  pastEvents: EventResponseIPast[];
   loading: boolean;
 }
 
@@ -22,9 +22,9 @@ const EventsPanel: React.FC<Props> = ({
   pastEvents,
   loading,
 }) => {
-  const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventResponseIPast | null>(null);
 
-  const handleOpenModal = (event: EventResponse) => {
+  const handleOpenModal = (event: EventResponseIPast) => {
     setSelectedEvent(event);
   };
 
@@ -34,7 +34,7 @@ const EventsPanel: React.FC<Props> = ({
 
   const renderEventSection = (
   title: string,
-  events: EventResponse[],
+  events: EventResponseIPast[],
   emptyMessage: string
 ) => (
   <Box
@@ -85,8 +85,8 @@ const EventsPanel: React.FC<Props> = ({
   return (
     <Grid size= {{xs:12, md: 4}}>
 
-      {renderEventSection("Sự Kiện Sắp Tới", incomingEvents, "Không có sự kiện sắp tới")}
-      {renderEventSection("Sự Kiện Đã Qua", pastEvents, "Không có sự kiện đã qua")}
+      {renderEventSection("INCOMINGS", incomingEvents, "No Events")}
+      {renderEventSection("PAST", pastEvents, "No Events")}
 
       {selectedEvent && (
         <EventDetailModal
