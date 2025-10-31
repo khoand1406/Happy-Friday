@@ -2,7 +2,7 @@ import { AxiosError } from "axios";
 import { ACCEPT_EVENT, BaseURl, CREATE_EVENT, DELETE_EVENT, EVENT_DETAIL, EVENTS, INCOMING_EVENTS, PAST_EVENTS, REJECT_EVENT, UPDATE_EVENT } from "../constraint/ApiConstraint";
 import ApiHelper from "../helper/ApiHelper";
 import type { CreateEventRequest, UpdateEventRequest } from "../models/request/event.request";
-import type { CreateEventResponse, EventDetailResponse, EventResponse } from "../models/response/event.response";
+import type { CreateEventResponse, EventDetailResponse, EventResponse, EventResponseIPast } from "../models/response/event.response";
 
 export const getEvents= async(startDate: string, endDate: string): Promise<EventResponse[]>=>{
     try{
@@ -95,11 +95,11 @@ export const acceptEvent= async(eventId:number):Promise<any>=>{
     }
 }
 
-export const getPastEvents= async():Promise<EventResponse[]>=>{
+export const getPastEvents= async():Promise<EventResponseIPast[]>=>{
     try {
         const apiHelper= new ApiHelper(BaseURl);
         const response= await apiHelper.get(PAST_EVENTS);
-        return response as EventResponse[];
+        return response as EventResponseIPast[];
     } catch (error) {
         if(error instanceof AxiosError){
             throw new Error(error.response?.data.message || "Failed to accept event");
@@ -108,11 +108,11 @@ export const getPastEvents= async():Promise<EventResponse[]>=>{
     }
 }
 
-export const getIncomingEvents= async(): Promise<EventResponse[]>=>{
+export const getIncomingEvents= async(): Promise<EventResponseIPast[]>=>{
     try {
         const apiHelper= new ApiHelper(BaseURl);
         const response= await apiHelper.get(INCOMING_EVENTS);
-        return response as EventResponse[]
+        return response as EventResponseIPast[]
     } catch (error) {
         if(error instanceof AxiosError){
             throw new Error(error.response?.data.message || "Failed to accept event");

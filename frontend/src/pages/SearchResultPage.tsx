@@ -119,7 +119,7 @@ export default function SearchPage() {
   return (
     <MainLayout>
       <Box>
-        <Typography variant="h5" fontWeight={600} mb={3}>
+        <Typography variant="h5" fontWeight={300} mb={3}>
           Search result for “{query}”
         </Typography>
 

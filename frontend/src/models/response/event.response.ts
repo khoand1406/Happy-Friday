@@ -63,3 +63,19 @@ export interface InviteResponse{
     name: string
     avatarUrl: string
 }
+
+export interface EventResponseIPast{
+  id: number;
+  title: string;
+  content: string;
+  startDate: Date;
+  endDate: Date;
+  creatorId: string;
+  participants: BasicResponse[]
+}
+
+interface BasicResponse{
+  id: string
+  name: string
+  avatar:string
+}

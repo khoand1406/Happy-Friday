@@ -1,11 +1,11 @@
-import { useEffect } from "react";
-import { supabaseClient } from "../config/SupabaseClient";
+import { Avatar, Box, CircularProgress, Typography } from "@mui/material";
 import axios from "axios";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabaseClient } from "../config/SupabaseClient";
 import { BaseURl, OUTLOOK_LOGIN } from "../constraint/ApiConstraint";
 import { ACCESS_TOKEN } from "../constraint/LocalStorage";
 import { useUser } from "../context/UserContext";
-import { Box, Avatar, Typography, CircularProgress } from "@mui/material";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -130,7 +130,7 @@ export default function AuthCallback() {
     >
       <Avatar
         sx={{ width: 80, height: 80, bgcolor: "#1976d2", mb: 2 }}
-        src="https://ui-avatars.com/api/?name=Outlook&background=1976d2&color=fff"
+        src="/assets/images/Microsoft_Azure.png"
       />
       <Typography variant="h6" gutterBottom>
         Đang xác thực tài khoản Outlook...

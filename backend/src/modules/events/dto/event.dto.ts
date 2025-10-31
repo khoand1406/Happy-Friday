@@ -7,6 +7,22 @@ export interface EventResponse {
   creatorid: string;
 }
 
+export interface EventResponseIPast{
+  id: number;
+  title: string;
+  content: string;
+  startdate: Date;
+  enddate: Date;
+  creatorid: string;
+  participants: BasicResponse[]
+}
+
+interface BasicResponse{
+  id: string
+  name: string
+  avatar:string
+}
+
 export interface EventDetailResponse {
   id: number;
   title: string;

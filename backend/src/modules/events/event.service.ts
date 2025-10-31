@@ -10,6 +10,7 @@ import {
   CreateEventResponse,
   EventDetailResponse,
   EventResponse,
+  EventResponseIPast,
   UpdateEventRequest,
 } from './dto/event.dto';
 
@@ -34,83 +35,105 @@ export class EventService {
     }
     return data as EventResponse[];
   }
-  async getIncomingEvents(userId: string): Promise<EventResponse[]> {
-    const now = new Date().toISOString();
-    try {
-      this.logger.log(`Querying incoming events with startDate >= ${now}`);
+ async getIncomingEvents(userId: string): Promise<EventResponseIPast[]> {
+  const now = new Date().toISOString();
 
-      const { data, error, status } = await supabaseAdmin
-        .rpc('get_upcoming_user_events', { uid: userId })
-        .order('startdate', { ascending: true });
+  try {
+    this.logger.log(`📅 Querying upcoming events for user ${userId} (from ${now})`);
 
-      if (error) {
-        this.logger.error(
-          'Supabase returned error',
-          JSON.stringify(error, Object.getOwnPropertyNames(error)),
-        );
-        throw new InternalServerErrorException(
-          'Supabase error: ' + (error.message ?? JSON.stringify(error)),
-        );
-      }
-
-      const safeData = (data ?? []).filter((item, idx) => {
-        const okId = item?.id !== undefined && item?.id !== null;
-        const okStart = !!item?.startdate;
-        const okEnd = !!item?.enddate;
-        if (!okId || !okStart || !okEnd) {
-          this.logger.warn(
-            `Skipping invalid row at index ${idx}: id=${item?.id}, startDate=${item?.startdate}, endDate=${item?.enddate}`,
-          );
-          return false;
-        }
-
-        if (isNaN(Number(item.id))) {
-          this.logger.warn(
-            `Row id is not numeric: id=${String(item.id)} (type=${typeof item.id}) at index ${idx}`,
-          );
-        }
-        return true;
-      });
-
-      const mapped = safeData.map((item) => ({
-        id: typeof item.id === 'number' ? item.id : Number(item.id),
-        title: item.title ?? 'No Title',
-        content: item.content ?? '',
-        startdate: new Date(item.startdate),
-        enddate: new Date(item.enddate),
-        creatorid: String(item.creatorid),
-      }));
-
-      this.logger.log(`Returning ${mapped.length} incoming events`);
-      return mapped;
-    } catch (err) {
-      this.logger.error('getIncomingEvents failed', err as any);
-      throw new InternalServerErrorException(
-        'Internal Server Error while fetching incoming events',
-      );
-    }
-  }
-  async getPastEvents(userId: string): Promise<EventResponse[]> {
-    const { data, error } = await supabaseAdmin.rpc('get_past_user_events', {
-      uid: userId,
-    });
+    const { data, error } = await supabaseAdmin
+      .rpc('get_upcoming_user_events', { uid: userId })
+      .order('startDate', { ascending: true });
 
     if (error) {
+      this.logger.error('❌ Supabase RPC error', error);
       throw new InternalServerErrorException(
-        'Internal Server Error: ' + error.message,
+        `Supabase error: ${error.message ?? JSON.stringify(error)}`,
       );
     }
-    const mapped = data.map((item) => ({
-      id: typeof item.id === 'number' ? item.id : Number(item.id),
+
+    if (!data || data.length === 0) {
+      this.logger.log('ℹ️ No upcoming events found.');
+      return [];
+    }
+
+    const mapped = data
+      .filter((item, idx) => {
+        const ok =
+          item?.id != null &&
+          item?.startDate != null &&
+          item?.endDate != null;
+
+        if (!ok) {
+          this.logger.warn(
+            `⚠️ Skipping invalid event at index ${idx}: ${JSON.stringify(item)}`,
+          );
+        }
+        return ok;
+      })
+      .map((item) => ({
+        id: Number(item.id),
+        title: item.title ?? 'No Title',
+        content: item.content ?? '',
+        startDate: new Date(item.startDate),
+        endDate: new Date(item.endDate),
+        creatorId: String(item.creatorId),
+        participants: Array.isArray(item.participants)
+          ? item.participants.map((p) => ({
+              id: String(p.id),
+              name: p.name ?? 'Unknown',
+              avatar: p.avatar ?? null,
+            }))
+          : [],
+      }));
+
+    this.logger.log(`✅ Returning ${mapped.length} upcoming events`);
+    return mapped;
+  } catch (err) {
+    this.logger.error('💥 getIncomingEvents failed', err);
+    throw new InternalServerErrorException(
+      'Internal Server Error while fetching upcoming events',
+    );
+  }
+}
+
+  async getPastEvents(userId: string): Promise<EventResponseIPast[]> {
+  try {
+    this.logger.log(`Querying past events for user ${userId}`);
+
+    const { data, error } = await supabaseAdmin
+      .rpc('get_past_user_events', { uid: userId })
+      .order('startDate', { ascending: false });
+
+    if (error) {
+      this.logger.error('Supabase RPC error', error);
+      throw new InternalServerErrorException(
+        `Supabase error: ${error.message ?? JSON.stringify(error)}`,
+      );
+    }
+
+    return (data ?? []).map((item) => ({
+      id: Number(item.id),
       title: item.title ?? 'No Title',
       content: item.content ?? '',
-      startdate: new Date(item.startdate),
-      enddate: new Date(item.enddate),
-      creatorid: String(item.creatorid),
+      startDate: new Date(item.startDate),
+      endDate: new Date(item.endDate),
+      creatorId: String(item.creatorId),
+      participants: Array.isArray(item.participants)
+        ? item.participants.map((p) => ({
+            id: String(p.id),
+            name: p.name ?? 'Unknown',
+            avatar: p.avatar ?? null,
+          }))
+        : [],
     }));
-
-    return mapped;
+  } catch (err) {
+    this.logger.error('getPastEvents failed', err);
+    throw new InternalServerErrorException(
+      'Internal Server Error while fetching past events',
+    );
   }
+}
 
   async getDetailEvent(eventId: number): Promise<EventDetailResponse> {
     const { data, error } = await supabaseAdmin

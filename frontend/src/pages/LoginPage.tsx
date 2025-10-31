@@ -95,17 +95,17 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleOutlookLogin= async()=> {
-    const {error}= await supabaseClient.auth.signInWithOAuth({
+  const handleOutlookLogin = async () => {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: "azure",
       options: {
         redirectTo: `${BaseUI}/auth/callback`,
-        scopes: "openid profile email offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.ReadBasic.All"
+        scopes:
+          "openid profile email offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/User.ReadBasic.All",
       },
-
-    })
+    });
     if (error) console.error("Login error:", error.message);
-  }
+  };
 
   return (
     <motion.div
@@ -258,22 +258,40 @@ export const LoginPage: React.FC = () => {
               Sign In
             </Button>
             <Divider></Divider>
-            
+
             <Button
               fullWidth
               variant="contained"
-              
+              onClick={handleOutlookLogin}
               sx={{
-                mt: 1,
-                bgcolor: "#0B0F19",
-                color: "#fff",
+                mt: 1.5,
+                bgcolor: "#eef1f4ff",
+                color: "#151414ff",
                 textTransform: "none",
                 fontWeight: "bold",
                 py: 1.2,
-                "&:hover": { bgcolor: "#1a1f2d" },
+                borderRadius: 2,
+                fontSize: "15px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1.2,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                transition: "all 0.25s ease",
+                "&:hover": {
+                  bgcolor: "#515456ff",
+                  color: "#eef1f4ff",
+                  transform: "translateY(-1px)",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
+                },
               }}
-              onClick={handleOutlookLogin}
             >
+              <Box
+                component="img"
+                src="/assets/images/microsoft.png"
+                alt="Outlook"
+                sx={{ width: 22, height: 22 }}
+              />
               Login with Outlook
             </Button>
           </Box>
